@@ -1,10 +1,9 @@
 "use client";
 // src/app/runtime-monitoring/page.tsx
-// Attesta — Runtime Monitoring (runtime agent audit events), matched to the reference image.
-// Black canvas, navy panel, filter rail + pie charts + event table. Tailwind only; no new dependencies.
+// Attesta — Runtime Monitoring (runtime agent audit events).
+// Dark fintech SaaS design. Tailwind only; no new dependencies.
 
 import { useMemo, useState, type ReactNode } from "react";
-import DashboardLayout from "../../components/layout/DashboardLayout";
 
 /* ------------------------- types + tokens ------------------------- */
 
@@ -22,9 +21,8 @@ const SEVERITIES: Severity[] = ["High", "Medium", "Low"];
 const SEVERITY_COLOR: Record<Severity, string> = { High: "#ef4444", Medium: "#f59e0b", Low: "#10b981" };
 const LIMITS = [25, 50, 100, 500];
 
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400";
-const FONT = 'Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif';
-const CARD = "rounded-md border border-white/10 bg-[#0d1a33]";
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
+const CARD = "rounded-xl border border-white/[0.07] bg-[#0D1117]";
 
 /* ----------------------------- sample data ----------------------------- */
 
@@ -49,7 +47,6 @@ const TEMPLATES: Template[] = [
   T("rmdir", "Low", "git", (h) => `Folder removed: /home/runner/work/_temp/${h}`),
 ];
 
-// Weighted pick order (indexes into TEMPLATES) so the mix resembles a real runner.
 const PICK_ORDER = [1,1,1,1,1,1,1,0,0,0,0,2,2,3,3,8,8,4,4,5,5,6,6,7,7,9,9,10,11,11,12,13,13];
 
 function lcg(seed: number): () => number {
@@ -120,47 +117,11 @@ function toCsv(rows: AuditEvent[]): string {
 
 /* --------------------------- primitives --------------------------- */
 
-function IconButton({ label, children }: { label: string; children: ReactNode }) {
+function ActionButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return (
-    <button aria-label={label} className={`grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-zinc-300 transition hover:bg-white/10 motion-reduce:transition-none ${FOCUS}`}>
+    <button onClick={onClick} className={`h-8 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 text-xs font-medium text-white transition hover:bg-white/[0.08] ${FOCUS}`}>
       {children}
     </button>
-  );
-}
-
-function WhiteButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className={`h-8 rounded-md bg-zinc-100 px-3 text-[11px] font-medium text-slate-900 transition hover:bg-white motion-reduce:transition-none ${FOCUS}`}>
-      {children}
-    </button>
-  );
-}
-
-/* ----------------------------- header ----------------------------- */
-
-function TopBar() {
-  return (
-    <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/5 bg-[#0a0d14] px-4 py-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-100">
-        <span className="font-medium">Company health overview</span>
-        <span className="text-xs text-zinc-500">· Thu, 26 Feb 2026</span>
-        <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> synced 3 min ago
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <IconButton label="Security status">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z" /></svg>
-        </IconButton>
-        <IconButton label="Notifications">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8M10 21h4" /></svg>
-        </IconButton>
-        <button className={`flex h-8 items-center gap-2 rounded-lg bg-zinc-100 px-3 text-xs font-medium text-zinc-900 transition hover:bg-white motion-reduce:transition-none ${FOCUS}`}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" /></svg>
-          Export
-        </button>
-      </div>
-    </header>
   );
 }
 
@@ -171,8 +132,10 @@ function FilterButton({ label, count, active, onClick }: { label: string; count:
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`w-full rounded-md border px-3 py-2 text-left text-[11px] transition motion-reduce:transition-none ${FOCUS} ${
-        active ? "border-white bg-white font-medium text-slate-900" : "border-white/10 bg-[#1a2845] text-slate-200 hover:bg-[#22345a]"
+      className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition ${FOCUS} ${
+        active
+          ? "border-emerald-400/40 bg-emerald-400/10 font-semibold text-emerald-300"
+          : "border-white/[0.06] bg-white/[0.02] text-slate-300 hover:bg-white/[0.05] hover:text-white"
       }`}
     >
       {label} ({count})
@@ -183,8 +146,8 @@ function FilterButton({ label, count, active, onClick }: { label: string; count:
 function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h3 className="mb-2 text-[10px] text-slate-400">{title}</h3>
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">{children}</div>
+      <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{title}</h3>
+      <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">{children}</div>
     </div>
   );
 }
@@ -196,19 +159,19 @@ function FilterRail({ base, filters, onChange }: { base: AuditEvent[]; filters: 
     [base],
   );
   return (
-    <aside aria-label="Filters" className="space-y-5 border-b border-white/10 bg-[#0d1730] p-4 lg:max-h-[780px] lg:overflow-y-auto lg:border-b-0 lg:border-r">
-      <h2 className="text-xs font-bold text-white">Filters</h2>
+    <aside aria-label="Filters" className="space-y-5 border-b border-white/[0.07] bg-[#0A0F1A] p-4 lg:border-b-0 lg:border-r">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-white">Filters</h2>
       <div>
-        <label htmlFor="event-limit" className="mb-1 block text-[10px] text-slate-400">Number of events</label>
+        <label htmlFor="event-limit" className="mb-1 block text-[10px] font-medium text-slate-400">Number of events</label>
         <select
           id="event-limit"
           value={filters.limit}
           onChange={(e) => onChange({ ...filters, limit: Number(e.target.value) })}
-          className={`h-8 w-full rounded-md border border-white/10 bg-[#1a2845] px-2 text-[11px] text-slate-200 ${FOCUS}`}
+          className={`h-8 w-full rounded-lg border border-white/[0.08] bg-[#0D1117] px-2.5 text-xs text-slate-200 ${FOCUS}`}
         >
-          {LIMITS.map((n) => <option key={n} value={n}>{n}</option>)}
+          {LIMITS.map((n) => <option key={n} value={n} className="bg-[#0D1117]">{n}</option>)}
         </select>
-        <p className="mt-1 text-[9px] text-slate-500">Server fetch limit</p>
+        <p className="mt-1 text-[9px] text-slate-500">Maximum audit records to display</p>
       </div>
       <FilterGroup title="Severity">
         <FilterButton label="All" count={base.length} active={filters.severity === "All"} onClick={() => onChange({ ...filters, severity: "All" })} />
@@ -245,7 +208,7 @@ function Pie({ slices, label }: { slices: Slice[]; label: string }) {
   const total = live.reduce((n, s) => n + s.value, 0);
   let angle = 0;
   return (
-    <svg viewBox="0 0 200 200" role="img" aria-label={label} className="mx-auto h-[130px] w-[130px]">
+    <svg viewBox="0 0 200 200" role="img" aria-label={label} className="mx-auto h-[120px] w-[120px]">
       {total === 0 && <circle cx="100" cy="100" r="100" fill="#1a2845" />}
       {live.length === 1 && <circle cx="100" cy="100" r="100" fill={live[0].color} />}
       {live.length > 1 && live.map((s) => {
@@ -259,10 +222,10 @@ function Pie({ slices, label }: { slices: Slice[]; label: string }) {
 
 function Legend({ slices }: { slices: Slice[] }) {
   return (
-    <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[10px] text-slate-200">
+    <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[10px] text-slate-300">
       {slices.map((s) => (
         <li key={s.label} className="flex items-center gap-1.5">
-          <span aria-hidden className="h-1.5 w-6 rounded-sm" style={{ background: s.color }} />
+          <span aria-hidden className="h-1.5 w-5 rounded-full" style={{ background: s.color }} />
           {s.label} ({s.value})
         </li>
       ))}
@@ -272,8 +235,8 @@ function Legend({ slices }: { slices: Slice[] }) {
 
 function ChartCard({ title, slices }: { title: string; slices: Slice[] }) {
   return (
-    <section className={`${CARD} p-3`}>
-      <h3 className="mb-2 text-[10px] text-slate-300">{title}</h3>
+    <section className={`${CARD} p-4`}>
+      <h3 className="mb-2 text-xs font-semibold text-white">{title}</h3>
       <Pie slices={slices} label={`${title} ${slices.map((s) => `${s.label} ${s.value}`).join(", ")}`} />
       <Legend slices={slices} />
     </section>
@@ -290,8 +253,8 @@ function Charts({ rows }: { rows: AuditEvent[] }) {
   ];
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      <ChartCard title="Events by Severity:" slices={severitySlices} />
-      <ChartCard title="Agents:" slices={agentSlices} />
+      <ChartCard title="Events by Severity" slices={severitySlices} />
+      <ChartCard title="Runtime Agents" slices={agentSlices} />
     </div>
   );
 }
@@ -299,25 +262,25 @@ function Charts({ rows }: { rows: AuditEvent[] }) {
 /* ------------------------------- table ------------------------------- */
 
 const ACTION_BADGE: Record<string, string> = {
-  create: "bg-emerald-900/50 text-emerald-300",
-  delete: "bg-red-900/40 text-red-300",
-  exec: "bg-red-900/40 text-red-300",
-  connect: "bg-amber-900/40 text-amber-300",
-  read: "bg-amber-900/40 text-amber-300",
+  create:  "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20",
+  delete:  "bg-red-400/10 text-red-400 border border-red-400/20",
+  exec:    "bg-red-400/10 text-red-400 border border-red-400/20",
+  connect: "bg-amber-400/10 text-amber-400 border border-amber-400/20",
+  read:    "bg-amber-400/10 text-amber-400 border border-amber-400/20",
 };
 
 function EventRow({ e }: { e: AuditEvent }) {
   return (
-    <tr className="border-t border-white/[0.06] text-[11px] text-slate-200 hover:bg-white/[0.03]">
-      <td className="whitespace-nowrap px-3 py-2.5 font-mono">{e.time}</td>
+    <tr className="border-t border-white/[0.05] text-[11px] text-slate-200 hover:bg-white/[0.025]">
+      <td className="whitespace-nowrap px-4 py-2.5 font-mono text-slate-400">{e.time}</td>
       <td className="px-3 py-2.5">
-        <span className={`rounded-full px-2 py-0.5 text-[9px] font-medium ${ACTION_BADGE[e.action] ?? "bg-slate-700/60 text-slate-300"}`}>{e.action}</span>
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ${ACTION_BADGE[e.action] ?? "bg-slate-700/60 text-slate-300"}`}>{e.action}</span>
       </td>
-      <td className="px-3 py-2.5">{e.severity}</td>
-      <td className="px-3 py-2.5">{e.user}</td>
-      <td className="max-w-[460px] px-3 py-2.5"><span className="block truncate" title={e.details}>{e.details}</span></td>
-      <td className="px-3 py-2.5">{e.comm}</td>
-      <td className="whitespace-nowrap px-3 py-2.5">{e.status}</td>
+      <td className="px-3 py-2.5 font-medium">{e.severity}</td>
+      <td className="px-3 py-2.5 text-slate-400">{e.user}</td>
+      <td className="max-w-[420px] px-3 py-2.5"><span className="block truncate text-white/90" title={e.details}>{e.details}</span></td>
+      <td className="px-3 py-2.5 font-mono text-slate-300">{e.comm}</td>
+      <td className="whitespace-nowrap px-4 py-2.5 text-slate-400">{e.status}</td>
     </tr>
   );
 }
@@ -327,10 +290,10 @@ function EventTable({ rows }: { rows: AuditEvent[] }) {
     <div className={`${CARD} overflow-hidden`}>
       <div className="max-h-[520px] overflow-auto">
         <table className="w-full min-w-[820px] text-left">
-          <thead className="sticky top-0 bg-[#16264a]">
-            <tr className="text-[10px] font-bold text-white">
-              {["Time", "Action", "Severity", "User", "Details", "Comm", "Status"].map((h) => (
-                <th key={h} scope="col" className="px-3 py-2.5">{h}</th>
+          <thead className="sticky top-0 bg-[#0D1117] border-b border-white/[0.06]">
+            <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              {["Time", "Action", "Severity", "User", "Details", "Comm", "Status"].map((h, i) => (
+                <th key={h} scope="col" className={`py-2.5 ${i === 0 ? "px-4" : i === 6 ? "px-4" : "px-3"}`}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -349,19 +312,19 @@ function Toolbar({
 }: { query: string; onQuery: (v: string) => void; onRefresh: () => void; onCsv: () => void; onJson: () => void; updated: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <h2 className="text-xs font-bold text-white">Audit Events</h2>
+      <h2 className="text-sm font-semibold text-white mr-1">Audit Events</h2>
       <input
         type="search"
         value={query}
         onChange={(e) => onQuery(e.target.value)}
-        placeholder="Search visible rows"
+        placeholder="Search visible rows..."
         aria-label="Search visible rows"
-        className={`h-8 min-w-[180px] flex-1 rounded-md border border-white/10 bg-[#0d1a33] px-3 text-[11px] text-slate-200 placeholder:text-slate-500 ${FOCUS}`}
+        className={`h-8 min-w-[180px] flex-1 rounded-lg border border-white/[0.08] bg-[#0D1117] px-3 text-xs text-slate-200 placeholder:text-slate-500 ${FOCUS}`}
       />
-      <WhiteButton onClick={onRefresh}>Refresh</WhiteButton>
-      <WhiteButton onClick={onCsv}>CSV</WhiteButton>
-      <WhiteButton onClick={onJson}>JSON</WhiteButton>
-      <span className="text-[9px] text-slate-500">Last updated: {updated}</span>
+      <ActionButton onClick={onRefresh}>Refresh</ActionButton>
+      <ActionButton onClick={onCsv}>Export CSV</ActionButton>
+      <ActionButton onClick={onJson}>Export JSON</ActionButton>
+      <span className="text-[10px] text-slate-500 whitespace-nowrap">Updated: {updated}</span>
     </div>
   );
 }
@@ -380,27 +343,32 @@ export default function RuntimeMonitoringPage() {
   const refresh = () => setUpdated(new Date().toISOString().replace("T", " ").slice(0, 19));
 
   return (
-    <DashboardLayout>
-      <div className="min-h-full bg-black p-4 sm:p-6" style={{ fontFamily: FONT }}>
-        <div className="mx-auto max-w-[1280px] space-y-4">
-          <TopBar />
-          <div className="grid overflow-hidden rounded-xl bg-[#0b1426] lg:grid-cols-[210px_1fr]">
-            <FilterRail base={base} filters={filters} onChange={setFilters} />
-            <main className="min-w-0 space-y-3 p-4">
-              <Toolbar
-                query={filters.query}
-                onQuery={(query) => setFilters({ ...filters, query })}
-                onRefresh={refresh}
-                onCsv={() => download("runtime-events.csv", "text/csv", toCsv(rows))}
-                onJson={() => download("runtime-events.json", "application/json", JSON.stringify(rows, null, 2))}
-                updated={updated}
-              />
-              <Charts rows={rows} />
-              <EventTable rows={rows} />
-            </main>
-          </div>
+    <div className="space-y-4 p-4 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-white">Runtime Monitoring</h1>
+          <p className="mt-0.5 text-xs text-slate-400">Real-time eBPF and kernel audit telemetry for build runners</p>
         </div>
+        <span className="rounded-full border border-amber-400/60 px-2.5 py-0.5 text-[10px] font-medium text-amber-300">
+          Sample data
+        </span>
       </div>
-    </DashboardLayout>
+
+      <div className="grid overflow-hidden rounded-xl border border-white/[0.07] bg-[#0D1117] lg:grid-cols-[210px_1fr]">
+        <FilterRail base={base} filters={filters} onChange={setFilters} />
+        <main className="min-w-0 space-y-4 p-4 sm:p-5">
+          <Toolbar
+            query={filters.query}
+            onQuery={(query) => setFilters({ ...filters, query })}
+            onRefresh={refresh}
+            onCsv={() => download("runtime-events.csv", "text/csv", toCsv(rows))}
+            onJson={() => download("runtime-events.json", "application/json", JSON.stringify(rows, null, 2))}
+            updated={updated}
+          />
+          <Charts rows={rows} />
+          <EventTable rows={rows} />
+        </main>
+      </div>
+    </div>
   );
 }

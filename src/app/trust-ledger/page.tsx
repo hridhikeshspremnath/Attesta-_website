@@ -1,9 +1,11 @@
+"use client";
+
 // src/app/trust-ledger/page.tsx
-// Attesta — Trust Ledger. Same conventions as workload-identity/page.tsx.
-// Tailwind only; no new dependencies.
+// Attesta — Trust Ledger.
+// Dark fintech SaaS design. Tailwind only; no new dependencies.
 
 import type { ReactNode } from "react";
-import DashboardLayout from "../../components/layout/DashboardLayout";
+import Link from "next/link";
 
 /* ------------------------- tokens + types ------------------------- */
 
@@ -12,108 +14,49 @@ type Tone = "green" | "amber" | "red" | "white";
 const TONE_TEXT: Record<Tone, string> = {
   green: "text-emerald-400",
   amber: "text-amber-400",
-  red: "text-red-400",
+  red:   "text-red-400",
   white: "text-white",
 };
 
-const MUTED = "text-slate-400";
-const DIVIDER = "border-white/[0.06]";
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400";
+const MUTED   = "text-slate-400";
+const DIVIDER = "border-white/[0.07]";
 
 type Verification = "Valid" | "Not yet verified" | "Invalid";
-type LedgerRow = { tx: string; block: string; time: string; type: string; subject: string; verification: Verification };
+type LedgerRow = { tx: string; block: string; time: string; type: string; subject: string; verification: Verification; href?: string };
 type Field = { label: string; value: string; tone?: Tone };
 
-const VERIFICATION_TONE: Record<Verification, Tone> = {
-  Valid: "green",
-  "Not yet verified": "amber",
-  Invalid: "red",
+const VERIFICATION_BADGE: Record<Verification, string> = {
+  Valid: "bg-emerald-400/10 text-emerald-400 border-emerald-400/20",
+  "Not yet verified": "bg-amber-400/10 text-amber-400 border-amber-400/20",
+  Invalid: "bg-red-400/10 text-red-400 border-red-400/20",
 };
 
 /* ----------------------------- data ----------------------------- */
 
 const LEDGER: LedgerRow[] = [
-  { tx: "[tx-id]", block: "[n]", time: "13:55:19", type: "Signed decision", subject: "build-runner-1838", verification: "Valid" },
-  { tx: "[tx-id]", block: "[n]", time: "13:41:07", type: "Provenance record", subject: "run #1837", verification: "Valid" },
-  { tx: "[tx-id]", block: "[n]", time: "13:20:44", type: "Signed decision", subject: "test-runner-1836", verification: "Not yet verified" },
-  { tx: "[tx-id]", block: "[n]", time: "12:58:30", type: "Evidence reference", subject: "run #1835", verification: "Invalid" },
+  { tx: "0x8f4d92a1", block: "148,291", time: "13:55:19", type: "Signed decision", subject: "build-runner-1838", verification: "Valid", href: "/workload-identity" },
+  { tx: "0x3c7e10b4", block: "148,289", time: "13:41:07", type: "Provenance record", subject: "run #1837", verification: "Valid", href: "/provenance" },
+  { tx: "0x9a2f58e6", block: "148,276", time: "13:20:44", type: "Signed decision", subject: "test-runner-1836", verification: "Not yet verified", href: "/workload-identity" },
+  { tx: "0x1b4c73d9", block: "148,252", time: "12:58:30", type: "Evidence reference", subject: "run #1835", verification: "Invalid", href: "/pipeline-runs" },
 ];
 
 const NETWORK: Field[] = [
-  { label: "Channel", value: "[channel]" },
-  { label: "Peers online", value: "[n] of [n]", tone: "green" },
-  { label: "Block height", value: "[n]" },
+  { label: "Channel", value: "attesta-consortium-main" },
+  { label: "Peers online", value: "4 of 4 active", tone: "green" },
+  { label: "Block height", value: "148,294" },
+  { label: "Consensus", value: "Raft (TLS v1.3)" },
 ];
 
-const COLUMNS = ["Tx ID", "Block", "Time", "Type", "Subject", "Verification"];
+const COLUMNS = ["Tx Hash", "Block", "Time (UTC)", "Record Type", "Subject", "Verification"];
 
 /* --------------------------- primitives --------------------------- */
 
 function Card({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <section className="rounded-lg border border-white/5 bg-[#0e1a30] px-4 pb-3 pt-3.5">
-      {title && <h2 className="mb-1 text-xs font-bold text-white">{title}</h2>}
+    <section className="rounded-xl border border-white/[0.07] bg-[#0D1117] p-5">
+      {title && <h2 className="mb-3 text-sm font-semibold text-white">{title}</h2>}
       {children}
     </section>
-  );
-}
-
-function OutlineChip({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded-full border border-amber-400 px-2.5 py-0.5 text-[10px] font-medium text-amber-300">
-      {children}
-    </span>
-  );
-}
-
-function IconButton({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <button
-      aria-label={label}
-      className={`grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-zinc-300 transition hover:bg-white/10 motion-reduce:transition-none ${FOCUS}`}
-    >
-      {children}
-    </button>
-  );
-}
-
-/* ----------------------------- header ----------------------------- */
-
-function TopBar() {
-  return (
-    <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/5 bg-[#0a0d14] px-4 py-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-100">
-        <span className="font-medium">Company health overview</span>
-        <span className="text-xs text-zinc-500">· Thu, 26 Feb 2026</span>
-        <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> synced 3 min ago
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <IconButton label="Security status">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z" /></svg>
-        </IconButton>
-        <IconButton label="Notifications">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8M10 21h4" /></svg>
-        </IconButton>
-        <button className={`flex h-8 items-center gap-2 rounded-lg bg-zinc-100 px-3 text-xs font-medium text-zinc-900 transition hover:bg-white motion-reduce:transition-none ${FOCUS}`}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" /></svg>
-          Export
-        </button>
-      </div>
-    </header>
-  );
-}
-
-function PageTitle() {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-white">Trust Ledger</h1>
-        <p className={`mt-1 text-xs ${MUTED}`}>Signed decisions and provenance references recorded on Hyperledger Fabric</p>
-      </div>
-      <OutlineChip>Sample data</OutlineChip>
-    </div>
   );
 }
 
@@ -122,10 +65,14 @@ function PageTitle() {
 function LedgerTable() {
   return (
     <Card>
+      <div className="flex items-center justify-between pb-3">
+        <h2 className="text-sm font-semibold text-white">Committed Transactions</h2>
+        <span className="text-[11px] text-[#6B7280]">Hyperledger Fabric Channel</span>
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[620px] text-left text-xs">
+        <table className="w-full min-w-[640px] text-left text-xs">
           <thead>
-            <tr className="text-slate-300">
+            <tr className={`border-b text-slate-400 ${DIVIDER}`}>
               {COLUMNS.map((c) => (
                 <th key={c} scope="col" className="py-2.5 pr-4 font-medium">{c}</th>
               ))}
@@ -133,13 +80,23 @@ function LedgerTable() {
           </thead>
           <tbody>
             {LEDGER.map((r) => (
-              <tr key={r.time} className={`border-t ${DIVIDER}`}>
-                <td className="py-3 pr-4 font-mono font-bold text-sky-400">{r.tx}</td>
-                <td className="py-3 pr-4 font-mono font-bold text-white">{r.block}</td>
+              <tr key={r.tx} className={`border-t hover:bg-white/[0.025] transition-colors ${DIVIDER}`}>
+                <td className="py-3 pr-4 font-mono font-semibold text-cyan-400">
+                  {r.href ? (
+                    <Link href={r.href} className="hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500">
+                      {r.tx}
+                    </Link>
+                  ) : r.tx}
+                </td>
+                <td className="py-3 pr-4 font-mono text-white/90">{r.block}</td>
                 <td className={`py-3 pr-4 font-mono text-[11px] ${MUTED}`}>{r.time}</td>
                 <td className="py-3 pr-4 font-medium text-white">{r.type}</td>
-                <td className="py-3 pr-4 font-mono font-bold text-white">{r.subject}</td>
-                <td className={`py-3 font-medium ${TONE_TEXT[VERIFICATION_TONE[r.verification]]}`}>{r.verification}</td>
+                <td className="py-3 pr-4 font-mono text-white/90">{r.subject}</td>
+                <td className="py-3">
+                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${VERIFICATION_BADGE[r.verification]}`}>
+                    {r.verification}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -152,11 +109,11 @@ function LedgerTable() {
 function NetworkStatusCard() {
   return (
     <Card title="Network status">
-      <dl>
+      <dl className="divide-y divide-white/[0.05]">
         {NETWORK.map((f) => (
-          <div key={f.label} className="flex items-start justify-between gap-4 py-1.5 text-xs">
+          <div key={f.label} className="flex items-center justify-between gap-4 py-2 text-xs">
             <dt className={`shrink-0 ${MUTED}`}>{f.label}</dt>
-            <dd className={`break-all text-right font-mono font-bold ${TONE_TEXT[f.tone ?? "white"]}`}>{f.value}</dd>
+            <dd className={`break-all text-right font-mono font-semibold ${TONE_TEXT[f.tone ?? "white"]}`}>{f.value}</dd>
           </div>
         ))}
       </dl>
@@ -166,9 +123,9 @@ function NetworkStatusCard() {
 
 function LedgerNote() {
   return (
-    <Card>
-      <p className={`text-[11px] leading-relaxed ${MUTED}`}>
-        Only signed decisions, provenance records and evidence references are written to the ledger. Ordinary telemetry stays in the event store.
+    <Card title="Ledger Guarantee">
+      <p className={`text-xs leading-relaxed ${MUTED}`}>
+        Only cryptographically signed decisions, build provenance records, and immutable evidence references are committed to the distributed ledger. Ordinary pipeline telemetry remains in the high-throughput event store.
       </p>
     </Card>
   );
@@ -178,22 +135,43 @@ function LedgerNote() {
 
 export default function TrustLedgerPage() {
   return (
-    <DashboardLayout>
-      <div className="min-h-full bg-black p-4 sm:p-6" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif' }}>
-        <div className="mx-auto max-w-[1200px] space-y-4">
-          <TopBar />
-          <div className="space-y-4 rounded-xl bg-[#0b1426] p-4 sm:p-6">
-            <PageTitle />
-            <div className="grid items-start gap-4 lg:grid-cols-[1fr_280px]">
-              <LedgerTable />
-              <div className="space-y-4">
-                <NetworkStatusCard />
-                <LedgerNote />
-              </div>
-            </div>
-          </div>
+    <div className="space-y-4 p-4 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-white">Trust Ledger</h1>
+          <p className={`mt-0.5 text-xs ${MUTED}`}>Signed decisions and provenance references recorded on Hyperledger Fabric</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full border border-amber-400/60 px-2.5 py-0.5 text-[10px] font-medium text-amber-300">
+            Sample data
+          </span>
+          <button
+            onClick={() => {
+              const headers = COLUMNS.join(",");
+              const rows = LEDGER.map(l => `${l.tx},${l.block},${l.time},"${l.type}","${l.subject}",${l.verification}`).join("\n");
+              const blob = new Blob([headers + "\n" + rows], { type: "text/csv" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url; a.download = "trust-ledger-export.csv"; a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-white hover:bg-white/[0.08] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" />
+            </svg>
+            Export Ledger
+          </button>
         </div>
       </div>
-    </DashboardLayout>
+
+      <div className="grid items-start gap-4 lg:grid-cols-[1fr_300px]">
+        <LedgerTable />
+        <div className="space-y-4">
+          <NetworkStatusCard />
+          <LedgerNote />
+        </div>
+      </div>
+    </div>
   );
 }

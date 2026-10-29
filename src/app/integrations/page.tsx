@@ -1,51 +1,50 @@
 "use client";
 
-// src/app/settings/page.tsx
-// Attesta — Integrations & Settings. Same conventions as workload-identity/page.tsx.
+// src/app/integrations/page.tsx
+// Attesta — Integrations & Settings.
+// Dark fintech SaaS design. Tailwind only; no new dependencies.
 
 import { useState, type ReactNode } from "react";
-import DashboardLayout from "../../components/layout/DashboardLayout";
 
 /* ------------------------- tokens ------------------------- */
 
-const MUTED = "text-slate-400";
-const DIVIDER = "border-white/[0.06]";
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400";
+const MUTED   = "text-slate-400";
+const DIVIDER = "border-white/[0.07]";
+const FOCUS   = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
 
 type Tone = "green" | "amber";
-const TONE_TEXT: Record<Tone, string> = { green: "text-emerald-400", amber: "text-amber-400" };
 
 const TABS = ["Integrations", "Users & roles", "Alerting"] as const;
 type Tab = (typeof TABS)[number];
 
-type Integration = { name: string; detail: string; status: "Connected" | "Not configured" };
-type UserRow = { name: string; role: string; can: string };
+type Integration = { name: string; detail: string; status: "Connected" | "Not configured"; icon?: string };
+type UserRow = { name: string; role: string; can: string; email: string };
 
 /* ----------------------------- data ----------------------------- */
 
-const INTEGRATIONS: Integration[] = [
-  { name: "GitHub", detail: "Webhook, HMAC secret, repositories", status: "Connected" },
-  { name: "SPIRE", detail: "Trust domain [domain], attestation", status: "Connected" },
-  { name: "OPA", detail: "Policy bundle [version]", status: "Connected" },
-  { name: "Hyperledger Fabric", detail: "Channel [channel], chaincode", status: "Connected" },
-  { name: "ML package model", detail: "Endpoint, model [version]", status: "Connected" },
-  { name: "Alerting", detail: "Email, Slack, webhook", status: "Not configured" },
+const INITIAL_INTEGRATIONS: Integration[] = [
+  { name: "GitHub",             detail: "Webhook, HMAC secret, 4 active repositories synced", status: "Connected" },
+  { name: "SPIRE",              detail: "Trust domain attesta.dev, Node & Workload Attestor", status: "Connected" },
+  { name: "OPA",                detail: "Policy bundle v7.1.0, active decision logger",       status: "Connected" },
+  { name: "Hyperledger Fabric", detail: "Channel attesta-consortium-main, raft consensus",   status: "Connected" },
+  { name: "ML package model",   detail: "Inference endpoint https://ml.attesta.local, v1.4.2", status: "Connected" },
+  { name: "Alerting",           detail: "PagerDuty, Slack webhook, email notifications",       status: "Not configured" },
 ];
 
 const USERS: UserRow[] = [
-  { name: "[name]", role: "Admin", can: "Configure, respond, approve" },
-  { name: "[name]", role: "Analyst", can: "Investigate, request actions" },
-  { name: "[name]", role: "Viewer", can: "Read only" },
+  { name: "Sarah Connor",  role: "Admin",    can: "Configure, respond, approve", email: "sarah.c@attesta.dev" },
+  { name: "Alex Chen",     role: "Analyst",  can: "Investigate, request actions", email: "alex.chen@attesta.dev" },
+  { name: "David Kim",     role: "Auditor",  can: "Read only, export reports",    email: "david.kim@attesta.dev" },
 ];
 
 /* --------------------------- primitives --------------------------- */
 
 function Card({ title, action, children }: { title?: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <section className="rounded-lg border border-white/5 bg-[#0e1a30] px-4 pb-3 pt-3.5">
+    <section className="rounded-xl border border-white/[0.07] bg-[#0D1117] p-5">
       {(title || action) && (
-        <div className="mb-1 flex items-center justify-between gap-3">
-          {title && <h2 className="text-xs font-bold text-white">{title}</h2>}
+        <div className="mb-3 flex items-center justify-between gap-3">
+          {title && <h2 className="text-sm font-semibold text-white">{title}</h2>}
           {action}
         </div>
       )}
@@ -54,59 +53,14 @@ function Card({ title, action, children }: { title?: string; action?: ReactNode;
   );
 }
 
-function SampleChip() {
-  return (
-    <span className="rounded-full border border-amber-400 px-2.5 py-0.5 text-[10px] font-medium text-amber-300">
-      Sample data
-    </span>
-  );
-}
-
 function OutlineButton({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
   return (
     <button
       onClick={onClick}
-      className={`h-8 rounded-md border border-white/10 bg-white/5 px-3 text-xs font-medium text-white transition hover:bg-white/10 motion-reduce:transition-none ${FOCUS}`}
+      className={`h-8 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 text-xs font-medium text-white transition hover:bg-white/[0.08] ${FOCUS}`}
     >
       {children}
     </button>
-  );
-}
-
-function IconButton({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <button
-      aria-label={label}
-      className={`grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-zinc-300 transition hover:bg-white/10 motion-reduce:transition-none ${FOCUS}`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function TopBar() {
-  return (
-    <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/5 bg-[#0a0d14] px-4 py-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-100">
-        <span className="font-medium">Company health overview</span>
-        <span className="text-xs text-zinc-500">· Thu, 26 Feb 2026</span>
-        <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> synced 3 min ago
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <IconButton label="Security status">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z" /></svg>
-        </IconButton>
-        <IconButton label="Notifications">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8M10 21h4" /></svg>
-        </IconButton>
-        <button className={`flex h-8 items-center gap-2 rounded-lg bg-zinc-100 px-3 text-xs font-medium text-zinc-900 transition hover:bg-white motion-reduce:transition-none ${FOCUS}`}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" /></svg>
-          Export
-        </button>
-      </div>
-    </header>
   );
 }
 
@@ -121,8 +75,10 @@ function TabPills({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
           role="tab"
           aria-selected={tab === t}
           onClick={() => onChange(t)}
-          className={`rounded-full border px-3 py-1 text-[10px] font-medium transition motion-reduce:transition-none ${FOCUS} ${
-            tab === t ? "border-sky-400 text-sky-300" : "border-white/15 text-slate-300 hover:text-white"
+          className={`rounded-full border px-3.5 py-1 text-xs font-medium transition ${FOCUS} ${
+            tab === t
+              ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-300 font-semibold"
+              : "border-white/[0.08] text-slate-300 hover:bg-white/[0.04] hover:text-white"
           }`}
         >
           {t}
@@ -132,48 +88,77 @@ function TabPills({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   );
 }
 
-function IntegrationCard({ i }: { i: Integration }) {
+function IntegrationCard({
+  i,
+  onConfigure,
+}: {
+  i: Integration;
+  onConfigure: (name: string) => void;
+}) {
   const tone: Tone = i.status === "Connected" ? "green" : "amber";
   return (
     <Card>
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-xs font-bold text-white">{i.name}</h3>
-        <span className={`text-xs font-medium ${TONE_TEXT[tone]}`}>{i.status}</span>
+        <h3 className="text-sm font-semibold text-white">{i.name}</h3>
+        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+          tone === "green"
+            ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-400"
+            : "border-amber-400/20 bg-amber-400/10 text-amber-400"
+        }`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${tone === "green" ? "bg-emerald-400" : "bg-amber-400"}`} />
+          {i.status}
+        </span>
       </div>
-      <p className={`mt-1.5 text-[11px] ${MUTED}`}>{i.detail}</p>
-      <div className="mt-3">
-        <OutlineButton>Configure</OutlineButton>
+      <p className={`mt-2 text-xs leading-relaxed ${MUTED}`}>{i.detail}</p>
+      <div className="mt-4">
+        <OutlineButton onClick={() => onConfigure(i.name)}>
+          {i.status === "Connected" ? "Manage Settings" : "Configure Connection"}
+        </OutlineButton>
       </div>
     </Card>
   );
 }
 
-function IntegrationGrid({ items }: { items: Integration[] }) {
+function IntegrationGrid({
+  items,
+  onConfigure,
+}: {
+  items: Integration[];
+  onConfigure: (name: string) => void;
+}) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map((i) => <IntegrationCard key={i.name} i={i} />)}
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {items.map((i) => (
+        <IntegrationCard key={i.name} i={i} onConfigure={onConfigure} />
+      ))}
     </div>
   );
 }
 
 function UsersTable() {
   return (
-    <Card title="Users & roles">
+    <Card title="Team members & permissions">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] text-left text-xs">
+        <table className="w-full min-w-[560px] text-left text-xs">
           <thead>
-            <tr className={MUTED}>
-              <th scope="col" className="w-[45%] py-2.5 pr-4 font-normal">User</th>
-              <th scope="col" className="w-[15%] py-2.5 pr-4 font-normal">Role</th>
-              <th scope="col" className="py-2.5 font-normal">Can</th>
+            <tr className={`border-b text-slate-400 ${DIVIDER}`}>
+              <th scope="col" className="py-2.5 pr-4 font-medium">User</th>
+              <th scope="col" className="py-2.5 pr-4 font-medium">Email</th>
+              <th scope="col" className="py-2.5 pr-4 font-medium">Role</th>
+              <th scope="col" className="py-2.5 font-medium">Permissions</th>
             </tr>
           </thead>
           <tbody>
             {USERS.map((u) => (
-              <tr key={u.role} className={`border-t ${DIVIDER}`}>
-                <td className="py-3 pr-4 font-mono font-bold text-white">{u.name}</td>
-                <td className="py-3 pr-4 font-bold text-white">{u.role}</td>
-                <td className={`py-3 ${MUTED}`}>{u.can}</td>
+              <tr key={u.email} className={`border-t hover:bg-white/[0.025] transition-colors ${DIVIDER}`}>
+                <td className="py-3 pr-4 font-semibold text-white">{u.name}</td>
+                <td className="py-3 pr-4 font-mono text-slate-400">{u.email}</td>
+                <td className="py-3 pr-4">
+                  <span className="rounded-md bg-white/[0.08] px-2 py-0.5 text-[10px] font-semibold text-white">
+                    {u.role}
+                  </span>
+                </td>
+                <td className={`py-3 text-slate-300`}>{u.can}</td>
               </tr>
             ))}
           </tbody>
@@ -187,30 +172,121 @@ function UsersTable() {
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("Integrations");
-  const alerting = INTEGRATIONS.filter((i) => i.name === "Alerting");
+  const [integrations, setIntegrations] = useState<Integration[]>(INITIAL_INTEGRATIONS);
+  const [activeConfig, setActiveConfig] = useState<string | null>(null);
+
+  const handleConfigure = (name: string) => {
+    setActiveConfig(name);
+  };
+
+  const handleToggleStatus = (name: string) => {
+    setIntegrations((prev) =>
+      prev.map((item) =>
+        item.name === name
+          ? {
+              ...item,
+              status: item.status === "Connected" ? "Not configured" : "Connected",
+            }
+          : item
+      )
+    );
+    setActiveConfig(null);
+  };
+
+  const alerting = integrations.filter((i) => i.name === "Alerting");
 
   return (
-    <DashboardLayout>
-      <div className="min-h-full bg-black p-4 sm:p-6" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif' }}>
-        <div className="mx-auto max-w-[1200px] space-y-4">
-          <TopBar />
-          <div className="space-y-4 rounded-xl bg-[#0b1426] p-4 sm:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <h1 className="text-xl font-bold tracking-tight text-white">Integrations & Settings</h1>
-              <SampleChip />
+    <div className="space-y-4 p-4 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-white">Integrations & Settings</h1>
+          <p className={`mt-0.5 text-xs ${MUTED}`}>Manage external connections, consortium members, and identity providers</p>
+        </div>
+        <span className="rounded-full border border-amber-400/60 px-2.5 py-0.5 text-[10px] font-medium text-amber-300">
+          Sample data
+        </span>
+      </div>
+
+      <TabPills tab={tab} onChange={setTab} />
+
+      {tab === "Integrations" && (
+        <div className="space-y-4">
+          <IntegrationGrid items={integrations} onConfigure={handleConfigure} />
+          <UsersTable />
+        </div>
+      )}
+
+      {tab === "Users & roles" && <UsersTable />}
+
+      {tab === "Alerting" && (
+        <div className="space-y-4">
+          <IntegrationGrid items={alerting} onConfigure={handleConfigure} />
+          <Card title="Alert Notification Rules">
+            <div className="space-y-3 text-xs text-slate-300">
+              <div className="flex items-center justify-between py-2 border-b border-white/[0.05]">
+                <span>Notify on HIGH severity incidents</span>
+                <span className="text-emerald-400 font-semibold">Enabled</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-white/[0.05]">
+                <span>Notify on SVID expiration within 15 minutes</span>
+                <span className="text-emerald-400 font-semibold">Enabled</span>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span>Notify on policy check DENY spikes (&gt;50 in 1 hour)</span>
+                <span className="text-emerald-400 font-semibold">Enabled</span>
+              </div>
             </div>
-            <TabPills tab={tab} onChange={setTab} />
-            {tab === "Integrations" && (
-              <>
-                <IntegrationGrid items={INTEGRATIONS} />
-                <UsersTable />
-              </>
-            )}
-            {tab === "Users & roles" && <UsersTable />}
-            {tab === "Alerting" && <IntegrationGrid items={alerting} />}
+          </Card>
+        </div>
+      )}
+
+      {/* Configuration Dialog Modal */}
+      {activeConfig && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl border border-white/[0.1] bg-[#0D1117] p-5 shadow-2xl">
+            <h3 className="text-base font-bold text-white mb-1">
+              Configure {activeConfig}
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              Update authentication tokens, certificates, or endpoints for this service.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-medium text-slate-300 mb-1">Endpoint URL / Target</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={`https://api.${activeConfig.toLowerCase().replace(/\s+/g, "-")}.attesta.internal`}
+                  className="w-full rounded-lg border border-white/[0.08] bg-[#080C14] px-3 py-2 text-xs text-slate-300"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-300 mb-1">Secret / Token</label>
+                <input
+                  type="password"
+                  readOnly
+                  value="••••••••••••••••••••••••••••••••"
+                  className="w-full rounded-lg border border-white/[0.08] bg-[#080C14] px-3 py-2 text-xs text-slate-300 font-mono"
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setActiveConfig(null)}
+                className="rounded-lg border border-white/[0.08] px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/[0.05]"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => handleToggleStatus(activeConfig)}
+                className="rounded-lg bg-emerald-500/20 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/30"
+              >
+                Toggle Status
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </DashboardLayout>
+      )}
+    </div>
   );
 }

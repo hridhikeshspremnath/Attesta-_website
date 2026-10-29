@@ -1,25 +1,35 @@
+"use client";
+
 // src/app/overview/page.tsx
-// Attesta — Overview. Self-contained: Tailwind utility classes only, no new dependencies.
-// Wrap with <DashboardLayout> only if your layout.tsx does not already do so.
+// Attesta — Overview dashboard. Dark fintech SaaS design.
+// Self-contained: Tailwind utility classes only, no new dependencies.
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 type Tone = "green" | "red" | "amber" | "cyan";
 
 const TONE_TEXT: Record<Tone, string> = {
   green: "text-emerald-400",
-  red: "text-red-400",
+  red:   "text-red-400",
   amber: "text-amber-400",
-  cyan: "text-cyan-300",
+  cyan:  "text-cyan-300",
+};
+
+const TONE_BG: Record<Tone, string> = {
+  green: "bg-emerald-400/10",
+  red:   "bg-red-400/10",
+  amber: "bg-amber-400/10",
+  cyan:  "bg-cyan-400/10",
 };
 
 /* ----------------------------- data ----------------------------- */
 
 const STATS = [
-  { label: "Active runs", value: 12, note: "3 awaiting trust gate", tone: "cyan" as Tone },
-  { label: "Access denials", value: 7, note: "2 need review", tone: "red" as Tone },
-  { label: "Open incidents", value: 1, note: "containment pending", tone: "amber" as Tone },
-  { label: "SVIDs expiring < 15 min", value: 4, note: "renewal queued", tone: "cyan" as Tone },
+  { label: "Active runs",          value: 12, note: "3 awaiting trust gate",  tone: "cyan"  as Tone },
+  { label: "Access denials",       value: 7,  note: "2 need review",          tone: "red"   as Tone },
+  { label: "Open incidents",       value: 1,  note: "containment pending",    tone: "amber" as Tone },
+  { label: "SVIDs expiring < 15m", value: 4,  note: "renewal queued",        tone: "cyan"  as Tone },
 ];
 
 const DENIED_24H = [
@@ -32,108 +42,45 @@ const DENIED_24H = [
 ];
 
 const SERVICES: { name: string; status: string; tone: Tone }[] = [
-  { name: "Webhook ingestion", status: "Live", tone: "green" },
-  { name: "Policy engine", status: "Live", tone: "green" },
-  { name: "Runtime agent", status: "Stale · 2 min", tone: "amber" },
-  { name: "Ledger", status: "Live", tone: "green" },
+  { name: "Webhook ingestion", status: "Live",           tone: "green" },
+  { name: "Policy engine",     status: "Live",           tone: "green" },
+  { name: "Runtime agent",     status: "Stale · 2 min",  tone: "amber" },
+  { name: "Ledger",            status: "Live",           tone: "green" },
 ];
 
 const EVENTS: {
   time: string; workload: string; event: string;
   outcome: string; tone: Tone; confidence: number;
+  href: string;
 }[] = [
-  { time: "14:02:11", workload: "build-runner-1842", event: "Read protected secret", outcome: "Denied", tone: "red", confidence: 87 },
-  { time: "14:01:48", workload: "deploy-runner-1841", event: "SVID issued · trust gate passed", outcome: "Allowed", tone: "green", confidence: 94 },
-  { time: "14:00:38", workload: "test-runner-1840", event: "Attestation failed", outcome: "Rejected", tone: "red", confidence: 81 },
-  { time: "13:58:02", workload: "build-runner-1839", event: "Trust gate: additional review", outcome: "Review", tone: "amber", confidence: 76 },
-  { time: "13:55:19", workload: "build-runner-1838", event: "Decision signed · ledger tx recorded", outcome: "Verified", tone: "green", confidence: 68 },
+  { time: "14:02:11", workload: "build-runner-1842",  event: "Read protected secret",           outcome: "Denied",   tone: "red",   confidence: 87, href: "/event-explorer" },
+  { time: "14:01:48", workload: "deploy-runner-1841", event: "SVID issued · trust gate passed", outcome: "Allowed",  tone: "green", confidence: 94, href: "/event-explorer" },
+  { time: "14:00:38", workload: "test-runner-1840",   event: "Attestation failed",              outcome: "Rejected", tone: "red",   confidence: 81, href: "/event-explorer" },
+  { time: "13:58:02", workload: "build-runner-1839",  event: "Trust gate: additional review",   outcome: "Review",   tone: "amber", confidence: 76, href: "/event-explorer" },
+  { time: "13:55:19", workload: "build-runner-1838",  event: "Decision signed · ledger tx recorded", outcome: "Verified", tone: "green", confidence: 68, href: "/event-explorer" },
 ];
 
 /* --------------------------- primitives --------------------------- */
 
 function Card({ className = "", children }: { className?: string; children: ReactNode }) {
   return (
-    <section className={`rounded-xl border border-white/5 bg-[#0d1830] ${className}`}>
+    <section className={`rounded-xl border border-white/[0.07] bg-[#0D1117] ${className}`}>
       {children}
     </section>
   );
 }
 
-function IconButton({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <button
-      aria-label={label}
-      className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-zinc-300 transition hover:bg-white/10"
-    >
-      {children}
-    </button>
-  );
-}
-
-function Chip({ children, accent = false }: { children: ReactNode; accent?: boolean }) {
-  return (
-    <span
-      className={`rounded-md border px-2 py-0.5 text-[10px] font-medium ${
-        accent ? "border-amber-400/70 text-amber-300" : "border-white/10 text-zinc-300"
-      }`}
-    >
-      {children}
-    </span>
-  );
-}
-
-/* ----------------------------- header ----------------------------- */
-
-function OverviewHeader() {
-  return (
-    <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/5 bg-[#0a0d14] px-4 py-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-100">
-        <h1 className="font-medium">Company health overview</h1>
-        <span className="text-xs text-zinc-500">· Thu, 26 Feb 2026</span>
-        <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          synced 3 min ago
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <IconButton label="Security status">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z" /></svg>
-        </IconButton>
-        <IconButton label="Notifications">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8M10 21h4" /></svg>
-        </IconButton>
-        <button className="flex items-center gap-2 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-900 transition hover:bg-white">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" /></svg>
-          Export
-        </button>
-      </div>
-    </header>
-  );
-}
-
-/* ------------------------- search + stats ------------------------- */
-
-function SearchBar() {
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-white/5 bg-[#0d1830] px-3 py-2">
-      <input
-        type="search"
-        placeholder="Search workload, run ID, request ID…"
-        aria-label="Search workloads, runs and requests"
-        className="min-w-0 flex-1 bg-transparent text-xs text-zinc-200 placeholder:text-zinc-500 focus:outline-none"
-      />
-      <Chip>Last 24 h</Chip>
-      <Chip accent>Sample data</Chip>
-    </div>
-  );
-}
+/* ----------------------- stat cards ----------------------- */
 
 function StatCard({ label, value, note, tone }: (typeof STATS)[number]) {
   return (
-    <Card className="p-4">
-      <p className="text-[11px] text-zinc-400">{label}</p>
-      <p className={`mt-1 text-3xl font-semibold ${TONE_TEXT[tone]}`}>{value}</p>
-      <p className="mt-1 text-[11px] text-zinc-500">{note}</p>
+    <Card className="p-5 flex flex-col gap-1">
+      <p className="text-[11px] font-medium text-[#9CA3AF] uppercase tracking-wide">{label}</p>
+      <p className={`text-3xl font-bold tabnum leading-none ${TONE_TEXT[tone]}`}>{value}</p>
+      <p className="mt-1 text-[11px] text-[#6B7280]">{note}</p>
+      <div className={`mt-2 h-1 rounded-full ${TONE_BG[tone]} overflow-hidden`}>
+        <div className={`h-full rounded-full ${TONE_TEXT[tone].replace("text-", "bg-")} opacity-60`} style={{ width: "60%" }} />
+      </div>
     </Card>
   );
 }
@@ -146,23 +93,29 @@ function StatsRow() {
   );
 }
 
-/* ----------------------- denied chart + health ----------------------- */
+/* ----------------------- denied chart ----------------------- */
 
 function DeniedRequestsChart() {
   const max = Math.max(...DENIED_24H.map((d) => d.value));
   return (
-    <Card className="p-4">
-      <h2 className="text-sm font-semibold text-zinc-100">Denied requests · 24 h</h2>
-      <div className="mt-4 flex h-28 items-end gap-3" role="img" aria-label="Denied requests per 4-hour window">
+    <Card className="p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-white">Denied requests · 24 h</h2>
+        <span className="text-[10px] text-[#6B7280] tabnum">{DENIED_24H.reduce((a, b) => a + b.value, 0)} total</span>
+      </div>
+      <div className="flex h-28 items-end gap-2" role="img" aria-label="Denied requests per 4-hour window">
         {DENIED_24H.map((d) => {
           const peak = d.value === max;
+          const pct = (d.value / max) * 100;
           return (
-            <div key={d.label} className="flex flex-1 flex-col items-center justify-end gap-1" style={{ height: "100%" }}>
+            <div key={d.label} className="flex flex-1 flex-col items-center gap-1.5">
+              <span className="text-[9px] text-[#6B7280] tabnum">{d.value}</span>
               <div
                 title={`${d.label}: ${d.value}`}
-                className={`w-full rounded-sm ${peak ? "bg-red-400" : "bg-cyan-300"}`}
-                style={{ height: `${(d.value / max) * 100}%`, minHeight: 8 }}
+                className={`w-full rounded-sm transition-all ${peak ? "bg-red-400" : "bg-cyan-400/60"}`}
+                style={{ height: `${pct}%`, minHeight: 4 }}
               />
+              <span className="text-[8px] text-[#6B7280]">{d.label}</span>
             </div>
           );
         })}
@@ -171,14 +124,25 @@ function DeniedRequestsChart() {
   );
 }
 
+/* ----------------------- service health ----------------------- */
+
 function ServiceHealth() {
   return (
-    <Card className="p-4">
-      <h2 className="text-sm font-semibold text-zinc-100">Service health</h2>
-      <ul className="mt-3 space-y-2.5 text-sm">
+    <Card className="p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-white">Service health</h2>
+        <span className="flex items-center gap-1.5 text-[10px] text-emerald-400">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          Live
+        </span>
+      </div>
+      <ul className="space-y-3">
         {SERVICES.map((s) => (
-          <li key={s.name} className="flex items-center justify-between">
-            <span className="text-zinc-200">{s.name}</span>
+          <li key={s.name} className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full flex-shrink-0 ${TONE_TEXT[s.tone].replace("text-", "bg-")}`} />
+              <span className="text-sm text-[#E5E7EB]">{s.name}</span>
+            </div>
             <span className={`text-xs font-medium ${TONE_TEXT[s.tone]}`}>{s.status}</span>
           </li>
         ))}
@@ -187,20 +151,20 @@ function ServiceHealth() {
   );
 }
 
-/* ------------------------- live event feed ------------------------- */
+/* ----------------------- live event feed ----------------------- */
 
 function ConfidenceBar({ value }: { value: number }) {
-  const segments = 24;
+  const segments = 20;
   const filled = Math.round((value / 100) * segments);
   return (
     <div className="flex items-center gap-[2px]" aria-hidden>
       {Array.from({ length: segments }).map((_, i) => {
-        const hue = 10 + (i / (segments - 1)) * 110; // red → green
+        const hue = 10 + (i / (segments - 1)) * 110;
         return (
           <span
             key={i}
-            className="h-3 w-[3px] rounded-[1px]"
-            style={{ background: i < filled ? `hsl(${hue} 85% 55%)` : "rgba(255,255,255,0.08)" }}
+            className="h-2.5 w-[3px] rounded-[1px]"
+            style={{ background: i < filled ? `hsl(${hue} 80% 55%)` : "rgba(255,255,255,0.07)" }}
           />
         );
       })}
@@ -208,20 +172,40 @@ function ConfidenceBar({ value }: { value: number }) {
   );
 }
 
+function OutcomeBadge({ outcome, tone }: { outcome: string; tone: Tone }) {
+  const cls: Record<Tone, string> = {
+    green: "bg-emerald-400/10 text-emerald-400 border-emerald-400/20",
+    red:   "bg-red-400/10 text-red-400 border-red-400/20",
+    amber: "bg-amber-400/10 text-amber-400 border-amber-400/20",
+    cyan:  "bg-cyan-400/10 text-cyan-300 border-cyan-400/20",
+  };
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${cls[tone]}`}>
+      {outcome}
+    </span>
+  );
+}
+
 function EventRow({ e }: { e: (typeof EVENTS)[number] }) {
   return (
-    <tr className="border-t border-white/5 transition hover:bg-white/[0.03]">
-      <td className="whitespace-nowrap px-4 py-3 font-mono text-[13px] text-zinc-400">{e.time}</td>
-      <td className="whitespace-nowrap px-4 py-3 font-mono text-[13px] font-semibold text-zinc-100">{e.workload}</td>
-      <td className="px-4 py-3 text-sm font-medium text-zinc-100">{e.event}</td>
-      <td className={`whitespace-nowrap px-4 py-3 text-sm font-medium ${TONE_TEXT[e.tone]}`}>{e.outcome}</td>
+    <tr className="border-t border-white/[0.05] transition hover:bg-white/[0.025] group">
+      <td className="whitespace-nowrap px-4 py-3 font-mono text-[12px] text-[#6B7280]">{e.time}</td>
+      <td className="whitespace-nowrap px-4 py-3 font-mono text-[12px] font-semibold text-white">{e.workload}</td>
+      <td className="px-4 py-3 text-sm text-[#E5E7EB]">{e.event}</td>
+      <td className="whitespace-nowrap px-4 py-3">
+        <OutcomeBadge outcome={e.outcome} tone={e.tone} />
+      </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <ConfidenceBar value={e.confidence} />
-          <span className="w-9 text-xs text-zinc-300">{e.confidence}%</span>
-          <button aria-label={`Expand ${e.workload}`} className="grid h-7 w-7 place-items-center rounded-md bg-zinc-200 text-zinc-900 transition hover:bg-white">
-            +
-          </button>
+          <span className="w-9 text-xs text-[#9CA3AF] tabnum">{e.confidence}%</span>
+          <Link
+            href={e.href}
+            aria-label={`View details for ${e.workload}`}
+            className="grid h-7 w-7 place-items-center rounded-md bg-white/[0.08] text-white/60 text-xs transition hover:bg-white/[0.15] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            →
+          </Link>
         </div>
       </td>
     </tr>
@@ -231,13 +215,27 @@ function EventRow({ e }: { e: (typeof EVENTS)[number] }) {
 function LiveEventFeed() {
   return (
     <Card className="overflow-hidden">
-      <h2 className="px-4 pt-4 text-base font-semibold text-zinc-100">Live event feed</h2>
-      <div className="mt-2 overflow-x-auto">
+      <div className="flex items-center justify-between px-5 pt-5 pb-3">
+        <h2 className="text-sm font-semibold text-white">Live event feed</h2>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-[10px] text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Live tail on
+          </span>
+          <Link
+            href="/event-explorer"
+            className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            View all →
+          </Link>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-left">
           <thead>
-            <tr className="text-sm text-slate-400">
+            <tr className="text-xs text-[#6B7280] border-b border-white/[0.05]">
               {["Time", "Workload", "Event", "Outcome", "Confidence"].map((h) => (
-                <th key={h} className="px-4 py-3 font-normal">{h}</th>
+                <th key={h} className="px-4 py-2.5 font-medium">{h}</th>
               ))}
             </tr>
           </thead>
@@ -248,18 +246,67 @@ function LiveEventFeed() {
   );
 }
 
-/* --------------------------- page --------------------------- */
+/* ---------------------- search bar ---------------------- */
+
+function SearchBar() {
+  return (
+    <div className="relative flex items-center">
+      <div className="pointer-events-none absolute left-3 text-[#6B7280]">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+        </svg>
+      </div>
+      <input
+        type="search"
+        placeholder="Search workload, run ID, request ID…"
+        aria-label="Search workloads, runs and requests"
+        className="h-10 w-full rounded-lg border border-white/[0.07] bg-[#0D1117] pl-9 pr-4 text-sm text-[#E5E7EB] placeholder:text-[#6B7280] focus:border-white/[0.15] focus:outline-none transition-colors"
+      />
+      <div className="absolute right-3 flex items-center gap-2">
+        <span className="rounded-md border border-white/[0.07] px-1.5 py-0.5 text-[10px] text-[#6B7280]">Last 24 h</span>
+        <span className="rounded-md border border-amber-400/40 px-1.5 py-0.5 text-[10px] text-amber-300">Sample</span>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------- page ----------------------------- */
 
 export default function OverviewPage() {
   return (
     <div className="space-y-4 p-4 sm:p-6">
-      <OverviewHeader />
+      {/* Page header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-white tracking-tight">Company health overview</h1>
+          <p className="mt-0.5 text-xs text-[#6B7280]">Thu, 26 Feb 2026 · synced 3 min ago</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.03] px-3 py-1 text-[11px] text-[#9CA3AF]">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            All systems operational
+          </span>
+          <a
+            href="#export"
+            onClick={(e) => { e.preventDefault(); alert("Export functionality: CSV/JSON export would download here"); }}
+            className="flex items-center gap-1.5 rounded-lg bg-white/[0.06] border border-white/[0.08] px-3 py-1.5 text-xs font-medium text-white hover:bg-white/[0.1] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" />
+            </svg>
+            Export
+          </a>
+        </div>
+      </div>
+
       <SearchBar />
       <StatsRow />
+
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <DeniedRequestsChart />
         <ServiceHealth />
       </div>
+
       <LiveEventFeed />
     </div>
   );

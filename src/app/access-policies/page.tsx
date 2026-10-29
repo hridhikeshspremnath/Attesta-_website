@@ -1,11 +1,9 @@
 "use client";
 // src/app/access-policies/page.tsx
-// Attesta — Access decisions and policy explorer, matched to the reference image.
-// Neutral dark panel on a black canvas, amber IDs, slide-over "Audit log entry" drawer.
-// Tailwind only; no new dependencies.
+// Attesta — Access decisions and policy explorer.
+// Dark fintech SaaS design. Tailwind only; no new dependencies.
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import DashboardLayout from "../../components/layout/DashboardLayout";
 
 /* ------------------------- types + tokens ------------------------- */
 
@@ -31,10 +29,9 @@ type Entry = Spec & {
   decisions: { action: string; effect: Effect; policy: string }[];
 };
 
-const MUTED = "text-zinc-400";
+const MUTED = "text-slate-400";
 const DIVIDER = "border-white/[0.07]";
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400";
-const FONT = 'Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif';
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
 
 /* ----------------------------- data ----------------------------- */
 
@@ -94,17 +91,6 @@ function matchesFilters(e: Entry, f: Filters): boolean {
 
 /* --------------------------- primitives --------------------------- */
 
-function IconButton({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <button
-      aria-label={label}
-      className={`grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-zinc-300 transition hover:bg-white/10 motion-reduce:transition-none ${FOCUS}`}
-    >
-      {children}
-    </button>
-  );
-}
-
 function FunnelIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -124,52 +110,12 @@ function Chevron({ open }: { open: boolean }) {
 function EffectPill({ effect }: { effect: Effect }) {
   const allow = effect === "ALLOW";
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${allow ? "bg-emerald-900/50 text-emerald-300" : "bg-red-900/40 text-red-300"}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${allow ? "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20" : "bg-red-400/10 text-red-400 border border-red-400/20"}`}>
       {allow && (
         <svg width="10" height="10" viewBox="0 0 16 16" aria-hidden><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
       )}
       {effect}
     </span>
-  );
-}
-
-/* ----------------------------- header ----------------------------- */
-
-function TopBar() {
-  return (
-    <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/5 bg-[#0a0d14] px-4 py-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-100">
-        <span className="font-medium">Company health overview</span>
-        <span className="text-xs text-zinc-500">· Thu, 26 Feb 2026</span>
-        <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> synced 3 min ago
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <IconButton label="Security status">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z" /></svg>
-        </IconButton>
-        <IconButton label="Notifications">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8M10 21h4" /></svg>
-        </IconButton>
-        <button className={`flex h-8 items-center gap-2 rounded-lg bg-zinc-100 px-3 text-xs font-medium text-zinc-900 transition hover:bg-white motion-reduce:transition-none ${FOCUS}`}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" /></svg>
-          Export
-        </button>
-      </div>
-    </header>
-  );
-}
-
-function PageTitle() {
-  return (
-    <div>
-      <div className="flex items-center gap-2">
-        <h1 className="text-2xl font-bold tracking-tight text-white">Access decisions</h1>
-        <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">SAMPLE</span>
-      </div>
-      <p className={`mt-2 text-[11px] ${MUTED}`}>All times are shown in UTC. Decisions come from the policy engine and are signed to the trust ledger.</p>
-    </div>
   );
 }
 
@@ -189,7 +135,7 @@ function TabBar({ tab, onChange }: { tab: TabId; onChange: (t: TabId) => void })
           role="tab"
           aria-selected={tab === t.id}
           onClick={() => onChange(t.id)}
-          className={`-mb-px border-b-2 px-1 py-3 text-xs ${FOCUS} ${tab === t.id ? "border-amber-400 text-white" : "border-transparent text-zinc-400 hover:text-zinc-200"}`}
+          className={`-mb-px border-b-2 px-1 py-3 text-xs ${FOCUS} ${tab === t.id ? "border-amber-400 text-white font-semibold" : "border-transparent text-slate-400 hover:text-white"}`}
         >
           {t.label}
         </button>
@@ -199,14 +145,14 @@ function TabBar({ tab, onChange }: { tab: TabId; onChange: (t: TabId) => void })
 }
 
 function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) {
-  const base = `flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-medium ${FOCUS}`;
+  const base = `flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition ${FOCUS}`;
   return (
-    <div role="group" aria-label="Display mode" className="flex rounded-lg border border-white/10 bg-white/[0.04] p-0.5">
-      <button aria-pressed={mode === "decision"} onClick={() => onChange("decision")} className={`${base} ${mode === "decision" ? "bg-emerald-900/50 text-emerald-300" : "text-zinc-300"}`}>
+    <div role="group" aria-label="Display mode" className="flex rounded-lg border border-white/[0.08] bg-[#080C14] p-0.5">
+      <button aria-pressed={mode === "decision"} onClick={() => onChange("decision")} className={`${base} ${mode === "decision" ? "bg-emerald-500/20 text-emerald-300 font-semibold" : "text-slate-400 hover:text-white"}`}>
         {mode === "decision" && <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
         Decision
       </button>
-      <button aria-pressed={mode === "json"} onClick={() => onChange("json")} className={`${base} ${mode === "json" ? "bg-emerald-900/50 text-emerald-300" : "text-zinc-300"}`}>
+      <button aria-pressed={mode === "json"} onClick={() => onChange("json")} className={`${base} ${mode === "json" ? "bg-emerald-500/20 text-emerald-300 font-semibold" : "text-slate-400 hover:text-white"}`}>
         JSON
       </button>
     </div>
@@ -219,9 +165,9 @@ function TimeRangeSelect({ hours, onChange }: { hours: number; onChange: (h: num
       aria-label="Filter time range"
       value={hours}
       onChange={(e) => onChange(Number(e.target.value))}
-      className={`h-8 min-w-[200px] rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs text-zinc-300 ${FOCUS}`}
+      className={`h-8 min-w-[200px] rounded-lg border border-white/[0.08] bg-[#080C14] px-3 text-xs text-slate-200 ${FOCUS}`}
     >
-      {TIME_RANGES.map((r) => <option key={r.hours} value={r.hours} className="bg-[#151515]">{r.label}</option>)}
+      {TIME_RANGES.map((r) => <option key={r.hours} value={r.hours} className="bg-[#0D1117]">{r.label}</option>)}
     </select>
   );
 }
@@ -234,7 +180,7 @@ function FilterHeader({ label, active, onToggle }: { label: string; active: bool
   return (
     <span className="inline-flex items-center gap-2">
       {label}
-      <button onClick={onToggle} aria-label={`Filter by ${label}`} aria-pressed={active} className={`rounded p-1 hover:bg-white/10 ${active ? "text-amber-300" : "text-zinc-500"} ${FOCUS}`}>
+      <button onClick={onToggle} aria-label={`Filter by ${label}`} aria-pressed={active} className={`rounded p-1 hover:bg-white/10 ${active ? "text-amber-300" : "text-slate-500"} ${FOCUS}`}>
         <FunnelIcon />
       </button>
     </span>
@@ -245,14 +191,14 @@ function FilterInputs({ open, filters, onChange }: { open: FilterKey | null; fil
   if (!open) return null;
   const isCall = open === "call";
   return (
-    <div className={`border-b px-4 py-2 ${DIVIDER}`}>
+    <div className={`border-b px-4 py-2 ${DIVIDER} bg-[#080C14]/50`}>
       <input
         autoFocus
         value={isCall ? filters.callQuery : filters.principalQuery}
         onChange={(e) => onChange({ ...filters, [isCall ? "callQuery" : "principalQuery"]: e.target.value })}
         placeholder={isCall ? "Filter by decision ID…" : "Filter by principal…"}
         aria-label={isCall ? "Filter by decision ID" : "Filter by principal"}
-        className={`h-8 w-full max-w-sm rounded-md border border-white/10 bg-white/[0.04] px-3 font-mono text-xs text-zinc-200 placeholder:text-zinc-500 ${FOCUS}`}
+        className={`h-8 w-full max-w-sm rounded-md border border-white/10 bg-[#0D1117] px-3 font-mono text-xs text-slate-200 placeholder:text-slate-500 ${FOCUS}`}
       />
     </div>
   );
@@ -265,13 +211,13 @@ function DecisionRow({ e, selected, onSelect }: { e: Entry; selected: boolean; o
       aria-selected={selected}
       onClick={onSelect}
       onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onSelect(); } }}
-      className={`cursor-pointer border-t font-mono text-[11px] transition motion-reduce:transition-none ${DIVIDER} ${FOCUS} ${selected ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
+      className={`cursor-pointer border-t font-mono text-[11px] transition motion-reduce:transition-none ${DIVIDER} ${FOCUS} ${selected ? "bg-[#111d36]" : "hover:bg-white/[0.025]"}`}
     >
-      <td className="whitespace-nowrap px-4 py-3 text-zinc-200">{e.timestamp}</td>
-      <td className="whitespace-nowrap px-3 py-3 text-amber-500">{e.callId}</td>
-      <td className="whitespace-nowrap px-3 py-3 text-zinc-200">{e.kind}</td>
-      <td className="whitespace-nowrap px-3 py-3 text-amber-500">{e.principalId}</td>
-      <td className="whitespace-nowrap px-3 py-3 text-zinc-300">{e.resourceKind}/{e.resourceId}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-slate-300">{e.timestamp}</td>
+      <td className="whitespace-nowrap px-3 py-3 text-amber-400 font-semibold">{e.callId}</td>
+      <td className="whitespace-nowrap px-3 py-3 text-slate-300">{e.kind}</td>
+      <td className="whitespace-nowrap px-3 py-3 text-amber-400 font-semibold">{e.principalId}</td>
+      <td className="whitespace-nowrap px-3 py-3 text-slate-300">{e.resourceKind}/{e.resourceId}</td>
       <td className="whitespace-nowrap px-3 py-3 pr-4"><EffectPill effect={e.effect} /></td>
     </tr>
   );
@@ -288,7 +234,7 @@ function DecisionTable({
       <div className="overflow-x-auto">
         <table className="w-full min-w-[860px] text-left">
           <thead>
-            <tr className="text-[11px] font-semibold text-zinc-200">
+            <tr className="text-[11px] font-semibold text-slate-300 border-b border-white/[0.05]">
               <th scope="col" className="px-4 py-3">Timestamp</th>
               <th scope="col" className="px-3 py-3"><FilterHeader label="Decision ID" active={openFilter === "call" || !!filters.callQuery} onToggle={() => toggle("call")} /></th>
               <th scope="col" className="px-3 py-3">Request kind</th>
@@ -317,7 +263,7 @@ function JsonView({ rows }: { rows: Entry[] }) {
     2,
   );
   return (
-    <pre tabIndex={0} aria-label="Decisions as JSON" className={`m-4 max-h-[480px] overflow-auto rounded-lg bg-[#1d1d1d] p-4 font-mono text-[11px] leading-relaxed text-amber-200 ${FOCUS}`}>
+    <pre tabIndex={0} aria-label="Decisions as JSON" className={`m-4 max-h-[480px] overflow-auto rounded-lg bg-[#080C14] border border-white/[0.06] p-4 font-mono text-[11px] leading-relaxed text-amber-200/90 ${FOCUS}`}>
       {text}
     </pre>
   );
@@ -339,7 +285,7 @@ function PolicyTable() {
     <div className="overflow-x-auto">
       <table className="w-full min-w-[640px] text-left">
         <thead>
-          <tr className="text-[11px] font-semibold text-zinc-200">
+          <tr className="text-[11px] font-semibold text-slate-300 border-b border-white/[0.05]">
             {["Policy", "Version", "Resource kind", "Allowed", "Denied", "Last evaluated"].map((h, i) => (
               <th key={h} scope="col" className={`py-3 ${i === 0 ? "px-4" : "px-3"}`}>{h}</th>
             ))}
@@ -347,13 +293,13 @@ function PolicyTable() {
         </thead>
         <tbody>
           {stats.map((s) => (
-            <tr key={s.policy + s.version} className={`border-t font-mono text-[11px] ${DIVIDER}`}>
-              <td className="px-4 py-3 text-amber-500">{s.policy}</td>
-              <td className="px-3 py-3 text-zinc-200">{s.version}</td>
-              <td className="px-3 py-3 text-zinc-300">{s.kind}</td>
-              <td className="px-3 py-3 text-emerald-400">{s.allow}</td>
-              <td className="px-3 py-3 text-red-400">{s.deny}</td>
-              <td className="whitespace-nowrap px-3 py-3 text-zinc-300">{s.last}</td>
+            <tr key={s.policy + s.version} className={`border-t font-mono text-[11px] ${DIVIDER} hover:bg-white/[0.02]`}>
+              <td className="px-4 py-3 text-amber-400 font-semibold">{s.policy}</td>
+              <td className="px-3 py-3 text-slate-300">{s.version}</td>
+              <td className="px-3 py-3 text-slate-300">{s.kind}</td>
+              <td className="px-3 py-3 text-emerald-400 font-medium">{s.allow}</td>
+              <td className="px-3 py-3 text-red-400 font-medium">{s.deny}</td>
+              <td className="whitespace-nowrap px-3 py-3 text-slate-400">{s.last}</td>
             </tr>
           ))}
         </tbody>
@@ -379,7 +325,7 @@ function JsonLine({ line }: { line: string }) {
 function JsonBlock({ value }: { value: unknown }) {
   const lines = JSON.stringify(value, null, 2).split("\n");
   return (
-    <pre className="mt-3 overflow-x-auto rounded-lg bg-[#1f1f1f] p-3 font-mono text-[10px] leading-5">
+    <pre className="mt-3 overflow-x-auto rounded-lg bg-[#080C14] border border-white/[0.06] p-3 font-mono text-[10px] leading-5">
       {lines.map((line, i) => (
         <div key={i} className="flex gap-4">
           <span aria-hidden className="w-3 shrink-0 select-none text-right text-zinc-600">{i + 1}</span>
@@ -412,7 +358,7 @@ function DrawerSection({ title, icon, children }: { title: string; icon: ReactNo
   );
 }
 
-const SECTION_ICON = "text-zinc-200";
+const SECTION_ICON = "text-zinc-400";
 
 function PrincipalSection({ p }: { p: Entry["principal"] }) {
   return (
@@ -449,7 +395,7 @@ function DecisionsSection({ items }: { items: Entry["decisions"] }) {
   return (
     <DrawerSection title="Decisions" icon={<svg className={SECTION_ICON} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M5 4l7 8v8M19 4l-7 8" /></svg>}>
       {items.map((d) => (
-        <dl key={d.action} className={`rounded-lg border px-3 py-1 ${DIVIDER}`}>
+        <dl key={d.action} className={`rounded-lg border px-3 py-1 ${DIVIDER} bg-[#080C14] mb-2`}>
           <Pair label="Action">{d.action}</Pair>
           <div className="grid grid-cols-[110px_1fr] items-center gap-2 py-1.5 text-[10px]">
             <dt className={MUTED}>Effect</dt>
@@ -472,11 +418,11 @@ function EntryDrawer({ entry, onClose }: { entry: Entry; onClose: () => void }) 
   }, [onClose]);
   return (
     <>
-      <div aria-hidden onClick={onClose} className="fixed inset-0 z-30 bg-black/50" />
-      <aside role="dialog" aria-modal="true" aria-label="Audit log entry" className="fixed inset-y-0 right-0 z-40 w-full max-w-[380px] overflow-y-auto border-l border-white/10 bg-[#151515] shadow-2xl">
-        <div className="flex items-start justify-between px-5 pt-5">
-          <h2 className="text-lg font-bold text-white">Audit log entry</h2>
-          <button ref={closeRef} onClick={onClose} aria-label="Close" className={`grid h-8 w-8 place-items-center rounded-md text-zinc-300 hover:bg-white/10 ${FOCUS}`}>
+      <div aria-hidden onClick={onClose} className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm" />
+      <aside role="dialog" aria-modal="true" aria-label="Audit log entry" className="fixed inset-y-0 right-0 z-40 w-full max-w-[380px] overflow-y-auto border-l border-white/10 bg-[#0D1117] shadow-2xl">
+        <div className="flex items-start justify-between px-5 pt-5 pb-3">
+          <h2 className="text-base font-bold text-white">Audit log entry</h2>
+          <button ref={closeRef} onClick={onClose} aria-label="Close" className={`grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white ${FOCUS}`}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
@@ -501,32 +447,40 @@ export default function AccessPoliciesPage() {
   const selected = ENTRIES.find((e) => e.callId === selectedId) ?? null;
 
   return (
-    <DashboardLayout>
-      <div className="min-h-full bg-black p-4 sm:p-6" style={{ fontFamily: FONT }}>
-        <div className="mx-auto max-w-[1200px] space-y-4">
-          <TopBar />
-          <div className="space-y-4 rounded-xl border border-white/5 bg-[#101010] p-4 sm:p-6">
-            <PageTitle />
-            <TabBar tab={tab} onChange={setTab} />
-            {tab === "decisions" ? (
-              <>
-                <div className="flex flex-wrap items-center gap-3">
-                  <ViewToggle mode={mode} onChange={setMode} />
-                  <TimeRangeSelect hours={filters.hours} onChange={(hours) => setFilters({ ...filters, hours })} />
-                </div>
-                <div className={`overflow-hidden rounded-lg border ${DIVIDER} bg-[#141414]`}>
-                  {mode === "decision"
-                    ? <DecisionTable rows={rows} selectedId={selectedId} onSelect={setSelectedId} filters={filters} onFilters={setFilters} />
-                    : <JsonView rows={rows} />}
-                </div>
-              </>
-            ) : (
-              <div className={`overflow-hidden rounded-lg border ${DIVIDER} bg-[#141414]`}><PolicyTable /></div>
-            )}
+    <div className="space-y-4 p-4 sm:p-6">
+      {/* Page Title */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-white">Access decisions & Policies</h1>
+            <span className="rounded bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">SAMPLE</span>
           </div>
+          <p className="mt-1 text-xs text-slate-400">All times shown in UTC. Decisions evaluated by OPA engine and committed to Trust Ledger.</p>
         </div>
       </div>
+
+      <div className="space-y-4 rounded-xl border border-white/[0.07] bg-[#0D1117] p-4 sm:p-5">
+        <TabBar tab={tab} onChange={setTab} />
+        {tab === "decisions" ? (
+          <>
+            <div className="flex flex-wrap items-center gap-3">
+              <ViewToggle mode={mode} onChange={setMode} />
+              <TimeRangeSelect hours={filters.hours} onChange={(hours) => setFilters({ ...filters, hours })} />
+            </div>
+            <div className={`overflow-hidden rounded-xl border ${DIVIDER} bg-[#0A0F1A]`}>
+              {mode === "decision"
+                ? <DecisionTable rows={rows} selectedId={selectedId} onSelect={setSelectedId} filters={filters} onFilters={setFilters} />
+                : <JsonView rows={rows} />}
+            </div>
+          </>
+        ) : (
+          <div className={`overflow-hidden rounded-xl border ${DIVIDER} bg-[#0A0F1A]`}>
+            <PolicyTable />
+          </div>
+        )}
+      </div>
+
       {selected && <EntryDrawer entry={selected} onClose={() => setSelectedId(null)} />}
-    </DashboardLayout>
+    </div>
   );
 }
