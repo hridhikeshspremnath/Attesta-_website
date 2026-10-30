@@ -98,7 +98,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
       ref={ref}
       role="dialog"
       aria-label="Notifications"
-      className="absolute right-0 top-full mt-2 w-[340px] rounded-xl border border-white/[0.07] bg-[#0D1117] shadow-2xl z-50 overflow-hidden"
+      className="absolute right-0 top-full mt-2 w-[340px] rounded-xl border border-emerald-500/30 bg-black/95 shadow-[0_0_25px_rgba(16,185,129,0.2)] z-50 overflow-hidden"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.07]">
         <span className="text-sm font-semibold text-white">Notifications</span>
@@ -165,7 +165,7 @@ function ProfilePanel({ onClose }: { onClose: () => void }) {
       ref={ref}
       role="dialog"
       aria-label="User profile menu"
-      className="absolute right-0 top-full mt-2 w-[220px] rounded-xl border border-white/[0.07] bg-[#0D1117] shadow-2xl z-50 overflow-hidden"
+      className="absolute right-0 top-full mt-2 w-[220px] rounded-xl border border-emerald-500/30 bg-black/95 shadow-[0_0_25px_rgba(16,185,129,0.2)] z-50 overflow-hidden"
     >
       <div className="px-4 py-3 border-b border-white/[0.07]">
         <p className="text-sm font-semibold text-white">Admin</p>
@@ -237,7 +237,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
       ref={ref}
       role="dialog"
       aria-label="Security status"
-      className="absolute right-0 top-full mt-2 w-[280px] rounded-xl border border-white/[0.07] bg-[#0D1117] shadow-2xl z-50 overflow-hidden"
+      className="absolute right-0 top-full mt-2 w-[280px] rounded-xl border border-emerald-500/30 bg-black/95 shadow-[0_0_25px_rgba(16,185,129,0.2)] z-50 overflow-hidden"
     >
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.07]">
         <span className={`h-2 w-2 rounded-full ${allOk ? "bg-emerald-400" : "bg-amber-400"}`} />
@@ -304,7 +304,7 @@ function GlobalSearch() {
             onClick={() => setOpen(false)}
           />
           <div className="fixed top-[20vh] left-1/2 -translate-x-1/2 z-50 w-full max-w-[560px] px-4">
-            <div className="rounded-xl border border-white/[0.1] bg-[#0D1117] shadow-2xl overflow-hidden">
+            <div className="rounded-xl border border-emerald-500/35 bg-black/95 shadow-[0_0_30px_rgba(16,185,129,0.25)] overflow-hidden">
               <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.07]">
                 <SearchIcon />
                 <input
@@ -344,7 +344,7 @@ export default function TopBar({ crumbs, actions, demo, onMenuOpen }: TopBarProp
   const [showProfile, setShowProfile] = useState(false);
 
   return (
-    <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] bg-[#080C14]/90 px-4 py-3 backdrop-blur-md sm:px-6">
+    <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] bg-black/95 px-4 py-3 backdrop-blur-md sm:px-6">
       {/* Left: mobile menu + breadcrumbs */}
       <div className="flex items-center gap-3 min-w-0">
         <MobileMenuButton onClick={onMenuOpen} />

@@ -64,7 +64,7 @@ const EVENTS: {
 
 function Card({ className = "", children }: { className?: string; children: ReactNode }) {
   return (
-    <section className={`rounded-xl border border-white/[0.07] bg-[#0D1117] ${className}`}>
+    <section className={`rounded-xl border border-emerald-500/25 bg-[#0A0E14] shadow-[0_0_18px_-3px_rgba(16,185,129,0.22),inset_0_0_12px_-3px_rgba(16,185,129,0.06)] hover:border-emerald-500/40 hover:shadow-[0_0_25px_-1px_rgba(16,185,129,0.32)] transition-all ${className}`}>
       {children}
     </section>
   );
@@ -76,10 +76,10 @@ function StatCard({ label, value, note, tone }: (typeof STATS)[number]) {
   return (
     <Card className="p-5 flex flex-col gap-1">
       <p className="text-[11px] font-medium text-[#9CA3AF] uppercase tracking-wide">{label}</p>
-      <p className={`text-3xl font-bold tabnum leading-none ${TONE_TEXT[tone]}`}>{value}</p>
+      <p className={`text-3xl font-bold tabnum leading-none drop-shadow-[0_0_10px_currentColor] ${TONE_TEXT[tone]}`}>{value}</p>
       <p className="mt-1 text-[11px] text-[#6B7280]">{note}</p>
       <div className={`mt-2 h-1 rounded-full ${TONE_BG[tone]} overflow-hidden`}>
-        <div className={`h-full rounded-full ${TONE_TEXT[tone].replace("text-", "bg-")} opacity-60`} style={{ width: "60%" }} />
+        <div className={`h-full rounded-full ${TONE_TEXT[tone].replace("text-", "bg-")} shadow-[0_0_8px_currentColor]`} style={{ width: "60%" }} />
       </div>
     </Card>
   );
@@ -103,7 +103,7 @@ function DeniedRequestsChart() {
         <h2 className="text-sm font-semibold text-white">Denied requests · 24 h</h2>
         <span className="text-[10px] text-[#6B7280] tabnum">{DENIED_24H.reduce((a, b) => a + b.value, 0)} total</span>
       </div>
-      <div className="flex h-28 items-end gap-2" role="img" aria-label="Denied requests per 4-hour window">
+      <div className="flex h-28 items-end gap-2 drop-shadow-[0_0_12px_rgba(6,182,212,0.3)]" role="img" aria-label="Denied requests per 4-hour window">
         {DENIED_24H.map((d) => {
           const peak = d.value === max;
           const pct = (d.value / max) * 100;
@@ -112,7 +112,11 @@ function DeniedRequestsChart() {
               <span className="text-[9px] text-[#6B7280] tabnum">{d.value}</span>
               <div
                 title={`${d.label}: ${d.value}`}
-                className={`w-full rounded-sm transition-all ${peak ? "bg-red-400" : "bg-cyan-400/60"}`}
+                className={`w-full rounded-sm transition-all ${
+                  peak
+                    ? "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.9),0_0_24px_rgba(239,68,68,0.45)]"
+                    : "bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.85),0_0_20px_rgba(6,182,212,0.4)]"
+                }`}
                 style={{ height: `${pct}%`, minHeight: 4 }}
               />
               <span className="text-[8px] text-[#6B7280]">{d.label}</span>
@@ -132,7 +136,7 @@ function ServiceHealth() {
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-white">Service health</h2>
         <span className="flex items-center gap-1.5 text-[10px] text-emerald-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10B981]" />
           Live
         </span>
       </div>
@@ -140,7 +144,7 @@ function ServiceHealth() {
         {SERVICES.map((s) => (
           <li key={s.name} className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className={`h-2 w-2 rounded-full flex-shrink-0 ${TONE_TEXT[s.tone].replace("text-", "bg-")}`} />
+              <span className={`h-2 w-2 rounded-full flex-shrink-0 ${TONE_TEXT[s.tone].replace("text-", "bg-")} shadow-[0_0_8px_currentColor]`} />
               <span className="text-sm text-[#E5E7EB]">{s.name}</span>
             </div>
             <span className={`text-xs font-medium ${TONE_TEXT[s.tone]}`}>{s.status}</span>
@@ -160,11 +164,15 @@ function ConfidenceBar({ value }: { value: number }) {
     <div className="flex items-center gap-[2px]" aria-hidden>
       {Array.from({ length: segments }).map((_, i) => {
         const hue = 10 + (i / (segments - 1)) * 110;
+        const isFilled = i < filled;
         return (
           <span
             key={i}
-            className="h-2.5 w-[3px] rounded-[1px]"
-            style={{ background: i < filled ? `hsl(${hue} 80% 55%)` : "rgba(255,255,255,0.07)" }}
+            className="h-2.5 w-[3px] rounded-[1px] transition-all"
+            style={{
+              background: isFilled ? `hsl(${hue} 90% 55%)` : "rgba(255,255,255,0.07)",
+              boxShadow: isFilled ? `0 0 6px hsl(${hue} 90% 55%)` : "none",
+            }}
           />
         );
       })}
@@ -260,7 +268,7 @@ function SearchBar() {
         type="search"
         placeholder="Search workload, run ID, request ID…"
         aria-label="Search workloads, runs and requests"
-        className="h-10 w-full rounded-lg border border-white/[0.07] bg-[#0D1117] pl-9 pr-4 text-sm text-[#E5E7EB] placeholder:text-[#6B7280] focus:border-white/[0.15] focus:outline-none transition-colors"
+        className="h-10 w-full rounded-lg border border-emerald-500/25 bg-[#0A0E14] pl-9 pr-4 text-sm text-[#E5E7EB] placeholder:text-[#6B7280] shadow-[0_0_15px_-3px_rgba(16,185,129,0.18)] focus:border-emerald-500/50 focus:shadow-[0_0_20px_rgba(16,185,129,0.3)] focus:outline-none transition-all"
       />
       <div className="absolute right-3 flex items-center gap-2">
         <span className="rounded-md border border-white/[0.07] px-1.5 py-0.5 text-[10px] text-[#6B7280]">Last 24 h</span>

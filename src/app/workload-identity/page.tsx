@@ -122,7 +122,11 @@ function IdentityCard() {
 }
 
 function LifetimeBar({ percent }: { percent: number }) {
-  const color = percent > 75 ? "bg-red-400" : percent > 50 ? "bg-amber-400" : "bg-emerald-400";
+  const color = percent > 75 
+    ? "bg-red-400 chart-bar-glow-red" 
+    : percent > 50 
+    ? "bg-amber-400 chart-bar-glow-amber" 
+    : "bg-emerald-400 chart-bar-glow-emerald";
   return (
     <div
       role="progressbar"
@@ -130,7 +134,7 @@ function LifetimeBar({ percent }: { percent: number }) {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={percent}
-      className="my-2 h-1.5 rounded-full bg-white/[0.06]"
+      className="my-2 h-2 rounded-full bg-white/[0.06] overflow-visible"
     >
       <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${percent}%` }} />
     </div>

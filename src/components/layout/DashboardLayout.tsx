@@ -43,7 +43,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const crumbs = useBreadcrumbs();
 
   return (
-    <div className="flex min-h-screen bg-[#080C14]">
+    <div className="flex min-h-screen bg-black text-[#F9FAFB]">
       <Sidebar
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}

@@ -155,7 +155,7 @@ function AffectedSystemsCard() {
       <ul className="space-y-2.5 pt-2">
         {AFFECTED.map((s) => (
           <li key={s.name} className="flex items-center gap-2.5 text-xs">
-            <span aria-hidden className="h-2 w-2 rounded-full bg-red-400 flex-shrink-0" />
+            <span aria-hidden className="h-2 w-2 rounded-full bg-red-400 flex-shrink-0 shadow-[0_0_8px_rgba(239,68,68,0.9)]" />
             <span className="text-white/90">{s.name}:</span>
             <span className="text-red-400 font-medium">{s.state}</span>
           </li>
@@ -187,11 +187,11 @@ function RemediationCard() {
         {REMEDIATION.map((r, i) => (
           <li key={r.text} className={`flex items-center justify-between gap-3 py-2.5 text-xs ${i > 0 ? `border-t ${DIVIDER}` : ""}`}>
             <span className="flex items-center gap-2.5 text-white/90">
-              <span aria-hidden className="grid h-4 w-4 flex-shrink-0 place-items-center rounded-full bg-emerald-500/20 border border-emerald-500/30 text-[9px] font-bold text-emerald-400">✓</span>
+              <span aria-hidden className="grid h-4 w-4 flex-shrink-0 place-items-center rounded-full bg-emerald-500/20 border border-emerald-500/30 text-[9px] font-bold text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.4)]">✓</span>
               {r.text}
             </span>
             <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
-              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
               {r.status}
             </span>
           </li>

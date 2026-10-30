@@ -24,7 +24,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-[#080C14] text-[#F9FAFB]">
+      <body className="min-h-full bg-black text-[#F9FAFB]">
         <DashboardLayout>{children}</DashboardLayout>
       </body>
     </html>

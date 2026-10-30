@@ -2,22 +2,22 @@
 
 /* ══════════════════════════════════════════════════════════════════════
    Attesta Design System — Dark Fintech SaaS
-   Reference: Attesta_Agent_Readable_UI_UX_Design_Rules.pdf
+   Pitch Black Backgrounds + Vibrant Neon Data Visualisations + Green Box Glow
    ══════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Backgrounds ── */
-  --app-bg:        #080C14;   /* near-black page canvas */
-  --surface:       #0D1117;   /* primary card / panel */
-  --surface-2:     #111827;   /* secondary card */
-  --surface-3:     #0A0F1A;   /* sidebar / header */
-  --surface-hover: rgba(255,255,255,0.035);
-  --surface-active:rgba(255,255,255,0.065);
+  /* ── Backgrounds (Pure Black) ── */
+  --app-bg:        #000000;   /* pitch black page canvas */
+  --surface:       #0A0E14;   /* deep charcoal/black card */
+  --surface-2:     #0F141C;   /* secondary deep card */
+  --surface-3:     #05080C;   /* sidebar / header */
+  --surface-hover: rgba(255,255,255,0.04);
+  --surface-active:rgba(255,255,255,0.07);
 
-  /* ── Borders ── */
-  --border:        rgba(255,255,255,0.07);
-  --border-strong: rgba(255,255,255,0.12);
-  --border-subtle: rgba(255,255,255,0.05);
+  /* ── Green Glow Borders ── */
+  --border:        rgba(16, 185, 129, 0.25);
+  --border-strong: rgba(16, 185, 129, 0.45);
+  --border-subtle: rgba(16, 185, 129, 0.15);
 
   /* ── Typography ── */
   --text-primary:   #F9FAFB;
@@ -25,16 +25,23 @@
   --text-muted:     #6B7280;
   --text-faint:     rgba(255,255,255,0.28);
 
-  /* ── Accent Palette ── */
-  --accent-green:  #10B981;
-  --accent-green-dim: rgba(16,185,129,0.15);
-  --accent-red:    #EF4444;
-  --accent-red-dim:rgba(239,68,68,0.15);
-  --accent-amber:  #F59E0B;
-  --accent-amber-dim: rgba(245,158,11,0.15);
-  --accent-blue:   #3B82F6;
-  --accent-cyan:   #06B6D4;
-  --accent-cyan-dim: rgba(6,182,212,0.15);
+  /* ── Neon Accent Palette ── */
+  --accent-green:     #10B981;
+  --accent-green-dim: rgba(16,185,129,0.2);
+  --accent-green-glow:0 0 16px rgba(16,185,129,0.5);
+
+  --accent-red:       #EF4444;
+  --accent-red-dim:   rgba(239,68,68,0.2);
+  --accent-red-glow:  0 0 16px rgba(239,68,68,0.5);
+
+  --accent-amber:     #F59E0B;
+  --accent-amber-dim: rgba(245,158,11,0.2);
+  --accent-amber-glow:0 0 16px rgba(245,158,11,0.5);
+
+  --accent-blue:      #3B82F6;
+  --accent-cyan:      #06B6D4;
+  --accent-cyan-dim:  rgba(6,182,212,0.2);
+  --accent-cyan-glow: 0 0 16px rgba(6,182,212,0.5);
 
   /* ── Shape ── */
   --radius-card:    10px;
@@ -45,8 +52,8 @@
   --sidebar-w:      224px;
   --sidebar-w-collapsed: 64px;
 
-  /* ── Legacy aliases ── */
-  --background: var(--app-bg);
+  /* ── Aliases ── */
+  --background: #000000;
   --foreground: var(--text-primary);
 }
 
@@ -60,32 +67,96 @@
 html {
   color-scheme: dark;
   height: 100%;
+  background-color: #000000;
 }
 
 body {
-  background: var(--app-bg);
+  background: #000000 !important;
   color: var(--text-primary);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100%;
 }
 
+/* ── Green Glow on All Boxes & Cards ── */
+.glow-box,
+.card-glow,
+section.rounded-xl,
+section.rounded-lg,
+[class*="bg-[#0D1117]"],
+[class*="bg-[#0A0F1A]"],
+[class*="bg-[#0d1830]"],
+[class*="bg-[#0e1a30]"] {
+  border-color: rgba(16, 185, 129, 0.25) !important;
+  box-shadow: 0 0 18px -3px rgba(16, 185, 129, 0.22), inset 0 0 12px -3px rgba(16, 185, 129, 0.06) !important;
+  transition: box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+
+.glow-box:hover,
+.card-glow:hover,
+section.rounded-xl:hover,
+section.rounded-lg:hover,
+[class*="bg-[#0D1117]"]:hover,
+[class*="bg-[#0A0F1A]"]:hover,
+[class*="bg-[#0d1830]"]:hover,
+[class*="bg-[#0e1a30]"]:hover {
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  box-shadow: 0 0 25px -1px rgba(16, 185, 129, 0.35), inset 0 0 16px -2px rgba(16, 185, 129, 0.1) !important;
+}
+
+/* ── Graphs and Data Visualisation Glow Effects ── */
+.viz-glow-cyan {
+  filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.75)) drop-shadow(0 0 18px rgba(6, 182, 212, 0.45));
+}
+
+.viz-glow-emerald {
+  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.8)) drop-shadow(0 0 18px rgba(16, 185, 129, 0.5));
+}
+
+.viz-glow-amber {
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.75)) drop-shadow(0 0 18px rgba(245, 158, 11, 0.45));
+}
+
+.viz-glow-red {
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)) drop-shadow(0 0 18px rgba(239, 68, 68, 0.5));
+}
+
+.viz-glow-multi {
+  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.6)) drop-shadow(0 0 20px rgba(6, 182, 212, 0.4));
+}
+
+.chart-bar-glow-cyan {
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.8), 0 0 20px rgba(6, 182, 212, 0.45);
+}
+
+.chart-bar-glow-red {
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.85), 0 0 22px rgba(239, 68, 68, 0.5);
+}
+
+.chart-bar-glow-emerald {
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.8), 0 0 20px rgba(16, 185, 129, 0.45);
+}
+
+.chart-bar-glow-amber {
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.8), 0 0 20px rgba(245, 158, 11, 0.45);
+}
+
 /* ── Scrollbar polish ── */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.1) transparent;
+  scrollbar-color: rgba(16, 185, 129, 0.25) transparent;
 }
 ::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+::-webkit-scrollbar-track { background: #000000; }
+::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.25); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.45); }
 
 /* ── Tabular nums for metrics ── */
 .tabnum { font-variant-numeric: tabular-nums; }
 
 /* ── Focus ring ── */
 .focus-ring:focus-visible {
-  outline: 2px solid var(--accent-blue);
+  outline: 2px solid var(--accent-green);
   outline-offset: 2px;
 }
 
@@ -102,9 +173,9 @@ body {
   position: fixed;
   inset: 0;
   z-index: 30;
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 /* ── Hide scrollbar utility ── */

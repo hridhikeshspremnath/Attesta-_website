@@ -208,7 +208,7 @@ function Pie({ slices, label }: { slices: Slice[]; label: string }) {
   const total = live.reduce((n, s) => n + s.value, 0);
   let angle = 0;
   return (
-    <svg viewBox="0 0 200 200" role="img" aria-label={label} className="mx-auto h-[120px] w-[120px]">
+    <svg viewBox="0 0 200 200" role="img" aria-label={label} className="mx-auto h-[120px] w-[120px] viz-glow-multi">
       {total === 0 && <circle cx="100" cy="100" r="100" fill="#1a2845" />}
       {live.length === 1 && <circle cx="100" cy="100" r="100" fill={live[0].color} />}
       {live.length > 1 && live.map((s) => {

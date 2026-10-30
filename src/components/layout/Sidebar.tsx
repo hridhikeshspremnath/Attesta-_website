@@ -281,11 +281,12 @@ function SidebarPanel({ collapsed, onToggleCollapse, onClose, isMobileDrawer }: 
                       : "gap-2.5 px-2.5 py-[7px]",
                     active
                       ? [
-                          "bg-white/[0.085]",
-                          "shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_1px_3px_rgba(0,0,0,0.4)]",
-                          "text-white",
+                          "bg-emerald-500/10",
+                          "border border-emerald-500/30",
+                          "shadow-[0_0_12px_rgba(16,185,129,0.2)]",
+                          "text-emerald-300",
                         ].join(" ")
-                      : "text-white/38 hover:bg-white/[0.045] hover:text-white/75",
+                      : "text-white/40 hover:bg-emerald-500/[0.06] hover:text-white/80",
                   ].join(" ")}
                 >
                   {/* active accent bar */}
@@ -456,9 +457,9 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
         className={[
           "hidden lg:flex",
           "fixed left-3 top-3 bottom-3 z-40 flex-col",
-          "rounded-2xl border border-white/[0.07]",
-          "bg-[#000000]/85 backdrop-blur-3xl",
-          "shadow-[inset_0_1px_0_rgba(255,255,255,0.11),inset_1px_0_0_rgba(255,255,255,0.04),0_24px_64px_-8px_rgba(0,0,0,0.95)]",
+          "rounded-2xl border border-emerald-500/20",
+          "bg-[#000000]/95 backdrop-blur-3xl",
+          "shadow-[0_0_20px_-3px_rgba(16,185,129,0.18),0_24px_64px_-8px_rgba(0,0,0,0.95)]",
           "transition-[width] duration-300 ease-in-out overflow-hidden",
           W,
         ].join(" ")}

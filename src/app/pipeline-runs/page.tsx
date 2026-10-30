@@ -80,7 +80,7 @@ const SUMMARY = [
 
 function Card({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-white/[0.07] bg-[#0D1117]">
+    <section className="rounded-xl border border-emerald-500/25 bg-[#0A0E14] shadow-[0_0_18px_-3px_rgba(16,185,129,0.22),inset_0_0_12px_-3px_rgba(16,185,129,0.06)] hover:border-emerald-500/40 hover:shadow-[0_0_25px_-1px_rgba(16,185,129,0.32)] transition-all">
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
         <h2 className="text-sm font-semibold text-white">{title}</h2>
         {aside}
@@ -141,7 +141,11 @@ function TimelineRow({ row }: { row: (typeof TIMELINE)[number] }) {
       <div className="relative h-1.5 rounded-full bg-white/[0.06]" role="img" aria-label={`${row.step}: ${s.label}`}>
         {row.width > 0 && (
           <div
-            className={`absolute top-0 h-full rounded-full ${row.status === "verified" ? "bg-emerald-400" : s.bar}`}
+            className={`absolute top-0 h-full rounded-full ${
+              row.status === "verified"
+                ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]"
+                : s.bar + " shadow-[0_0_10px_rgba(251,191,36,0.9)]"
+            }`}
             style={{ left: `${row.start}%`, width: `${row.width}%` }}
           />
         )}
@@ -212,16 +216,16 @@ function GraphEdge({ from, to }: { from: GraphNode; to: GraphNode }) {
   const a = nodePos(from), b = nodePos(to);
   const x1 = a.x + NODE_W, y1 = a.y + NODE_H / 2, x2 = b.x, y2 = b.y + NODE_H / 2;
   const mid = x1 + COL_GAP / 2;
-  return <path d={`M${x1} ${y1} H${mid} V${y2} H${x2}`} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" />;
+  return <path d={`M${x1} ${y1} H${mid} V${y2} H${x2}`} fill="none" stroke="rgba(16,185,129,0.5)" strokeWidth="1.5" filter="url(#glow-edge)" />;
 }
 
 function GraphNodeBox({ n }: { n: GraphNode }) {
   const { x, y } = nodePos(n);
   return (
     <g transform={`translate(${x} ${y})`}>
-      <rect width={NODE_W} height={NODE_H} rx="6" fill="#0D1117" stroke="rgba(255,255,255,0.1)" />
+      <rect width={NODE_W} height={NODE_H} rx="6" fill="#0A0E14" stroke="rgba(16,185,129,0.35)" filter="url(#glow-node)" />
       <g transform={`translate(10 ${NODE_H / 2 - 7})`}>
-        <circle cx="7" cy="7" r="6" fill={STATUS[n.status].hex} />
+        <circle cx="7" cy="7" r="6" fill={STATUS[n.status].hex} filter="url(#glow-dot)" />
       </g>
       <text x="30" y={NODE_H / 2 + 4} fontSize="11" fill="#e6edf3">{n.label}</text>
       <text x={NODE_W - 10} y={NODE_H / 2 + 4} fontSize="9" textAnchor="end" fill="#7d8590" fontFamily="ui-monospace, monospace">{n.meta}</text>
@@ -232,7 +236,7 @@ function GraphNodeBox({ n }: { n: GraphNode }) {
 function JobSidebar() {
   return (
     <aside className="p-4 text-[11px]">
-      <div className="rounded-md border-l-2 border-emerald-400/60 bg-white/[0.04] px-3 py-1.5 font-semibold text-white">Summary</div>
+      <div className="rounded-md border-l-2 border-emerald-400 bg-emerald-500/10 px-3 py-1.5 font-semibold text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.25)]">Summary</div>
       <div className={`mt-4 flex items-center justify-between px-1 ${MUTED}`}>
         <span>All jobs</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -253,9 +257,9 @@ function JobSidebar() {
 
 function SummaryStrip() {
   return (
-    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-white/[0.07] bg-white/[0.07] sm:grid-cols-4">
+    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-emerald-500/20 bg-emerald-500/20 sm:grid-cols-4 shadow-[0_0_12px_rgba(16,185,129,0.12)]">
       {SUMMARY.map((s) => (
-        <div key={s.label} className="bg-[#0D1117] px-3 py-2.5">
+        <div key={s.label} className="bg-[#0A0E14] px-3 py-2.5">
           <dt className="text-[10px] text-slate-400">{s.label}</dt>
           <dd className="mt-0.5 text-[11px] font-semibold text-white">{s.value}</dd>
         </div>
@@ -271,13 +275,36 @@ function WorkflowGraph() {
   const w = PAD * 2 + cols * NODE_W + (cols - 1) * COL_GAP;
   const h = PAD * 2 + rows * NODE_H + (rows - 1) * ROW_GAP;
   return (
-    <div className="rounded-lg border border-white/[0.07] bg-[#080C14]">
+    <div className="rounded-lg border border-emerald-500/25 bg-[#05080C] shadow-[0_0_18px_rgba(16,185,129,0.15)]">
       <div className="px-4 pt-3 pb-2">
         <p className="text-[11px] font-semibold text-white">attesta-ci.yml</p>
         <p className="text-[10px] text-slate-400">on push</p>
       </div>
       <div className="overflow-x-auto">
         <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Pipeline job dependency graph" className="block min-w-full">
+          <defs>
+            <filter id="glow-edge" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="1.5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="glow-dot" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="glow-node" x="-10%" y="-10%" width="120%" height="120%">
+              <feGaussianBlur stdDeviation="1" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
           {GRAPH_EDGES.map(([f, t]) => <GraphEdge key={f + t} from={byId[f]} to={byId[t]} />)}
           {GRAPH_NODES.map((n) => <GraphNodeBox key={n.id} n={n} />)}
         </svg>
@@ -288,7 +315,7 @@ function WorkflowGraph() {
 
 function PipelineGraph() {
   return (
-    <section className="overflow-hidden rounded-xl border border-white/[0.07] bg-[#0D1117]">
+    <section className="overflow-hidden rounded-xl border border-emerald-500/25 bg-[#0A0E14] shadow-[0_0_20px_-2px_rgba(16,185,129,0.22)]">
       <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.07] px-5 py-3 text-[11px] text-slate-400">
         <Link href="/pipeline-runs" className="hover:text-slate-200 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
           ← Pipeline Runs
