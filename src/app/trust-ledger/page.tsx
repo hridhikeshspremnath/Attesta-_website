@@ -34,7 +34,7 @@ function LedgerTable({ records }: { records: LedgerEntry[] }) {
               <td className="font-mono text-fg">{subject(e)}</td>
               <td className="font-mono text-muted">{e.record.run_id}</td>
               <td className="tabnum font-mono text-fg">{e.record.risk_score}</td>
-              <td>
+              <td className="whitespace-nowrap">
                 <Badge tone={DECISION_TONE[effectiveDecision(e)]}>{effectiveDecision(e)}</Badge>
                 {effectiveDecision(e) !== e.record.decision && <span className="ml-2 text-2xs text-muted">overrides {e.record.decision}</span>}
               </td>
