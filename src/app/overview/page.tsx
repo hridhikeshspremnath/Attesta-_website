@@ -1,35 +1,22 @@
 "use client";
 
 // src/app/overview/page.tsx
-// Attesta — Overview dashboard. Dark fintech SaaS design.
+// Attesta — Overview dashboard: security posture at a glance.
 // Self-contained: Tailwind utility classes only, no new dependencies.
 
-import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-
-type Tone = "green" | "red" | "amber" | "cyan";
-
-const TONE_TEXT: Record<Tone, string> = {
-  green: "text-emerald-400",
-  red:   "text-red-400",
-  amber: "text-amber-400",
-  cyan:  "text-cyan-300",
-};
-
-const TONE_BG: Record<Tone, string> = {
-  green: "bg-emerald-400/10",
-  red:   "bg-red-400/10",
-  amber: "bg-amber-400/10",
-  cyan:  "bg-cyan-400/10",
-};
+import PageHeader from "@/src/components/ui/PageHeader";
+import { Badge, Button, Card, EmptyState, SampleBadge, SearchField, StatusDot, TONE_TEXT, type Tone } from "@/src/components/ui/primitives";
+import { downloadFile } from "@/src/lib/download";
 
 /* ----------------------------- data ----------------------------- */
 
-const STATS = [
-  { label: "Active runs",          value: 12, note: "3 awaiting trust gate",  tone: "cyan"  as Tone },
-  { label: "Access denials",       value: 7,  note: "2 need review",          tone: "red"   as Tone },
-  { label: "Open incidents",       value: 1,  note: "containment pending",    tone: "amber" as Tone },
-  { label: "SVIDs expiring < 15m", value: 4,  note: "renewal queued",        tone: "cyan"  as Tone },
+const STATS: { label: string; value: number; note: string; tone: Tone; href: string }[] = [
+  { label: "Active runs",          value: 12, note: "3 awaiting trust gate", tone: "info", href: "/pipeline-runs" },
+  { label: "Access denials",       value: 7,  note: "2 need review",         tone: "crit", href: "/trust-decisions" },
+  { label: "Open incidents",       value: 1,  note: "containment pending",   tone: "warn", href: "/incidents" },
+  { label: "SVIDs expiring < 15m", value: 4,  note: "renewal queued",        tone: "warn", href: "/workload-identity" },
 ];
 
 const DENIED_24H = [
@@ -42,10 +29,11 @@ const DENIED_24H = [
 ];
 
 const SERVICES: { name: string; status: string; tone: Tone }[] = [
-  { name: "Webhook ingestion", status: "Live",           tone: "green" },
-  { name: "Policy engine",     status: "Live",           tone: "green" },
-  { name: "Runtime agent",     status: "Stale · 2 min",  tone: "amber" },
-  { name: "Ledger",            status: "Live",           tone: "green" },
+  { name: "Webhook ingestion", status: "Live",          tone: "ok" },
+  { name: "Policy engine",     status: "Live",          tone: "ok" },
+  { name: "Runtime agent",     status: "Stale · 2 min", tone: "warn" },
+  { name: "Ledger",            status: "Live",          tone: "ok" },
+  { name: "SPIRE attestation", status: "Live",          tone: "ok" },
 ];
 
 const EVENTS: {
@@ -53,41 +41,31 @@ const EVENTS: {
   outcome: string; tone: Tone; confidence: number;
   href: string;
 }[] = [
-  { time: "14:02:11", workload: "build-runner-1842",  event: "Read protected secret",           outcome: "Denied",   tone: "red",   confidence: 87, href: "/event-explorer" },
-  { time: "14:01:48", workload: "deploy-runner-1841", event: "SVID issued · trust gate passed", outcome: "Allowed",  tone: "green", confidence: 94, href: "/event-explorer" },
-  { time: "14:00:38", workload: "test-runner-1840",   event: "Attestation failed",              outcome: "Rejected", tone: "red",   confidence: 81, href: "/event-explorer" },
-  { time: "13:58:02", workload: "build-runner-1839",  event: "Trust gate: additional review",   outcome: "Review",   tone: "amber", confidence: 76, href: "/event-explorer" },
-  { time: "13:55:19", workload: "build-runner-1838",  event: "Decision signed · ledger tx recorded", outcome: "Verified", tone: "green", confidence: 68, href: "/event-explorer" },
+  { time: "14:02:11", workload: "build-runner-1842",  event: "Read protected secret",           outcome: "Denied",   tone: "crit", confidence: 87, href: "/event-explorer?event=e1" },
+  { time: "14:01:48", workload: "deploy-runner-1841", event: "SVID issued · trust gate passed", outcome: "Allowed",  tone: "ok",   confidence: 94, href: "/event-explorer?event=e4" },
+  { time: "14:00:38", workload: "test-runner-1840",   event: "Attestation failed",              outcome: "Rejected", tone: "crit", confidence: 81, href: "/event-explorer?event=e5" },
+  { time: "13:58:02", workload: "build-runner-1839",  event: "Trust gate: additional review",   outcome: "Review",   tone: "warn", confidence: 76, href: "/event-explorer?event=e6" },
+  { time: "13:55:19", workload: "build-runner-1838",  event: "Decision signed · ledger tx recorded", outcome: "Verified", tone: "ok", confidence: 68, href: "/event-explorer?event=e7" },
 ];
-
-/* --------------------------- primitives --------------------------- */
-
-function Card({ className = "", children }: { className?: string; children: ReactNode }) {
-  return (
-    <section className={`rounded-xl border border-emerald-500/25 bg-[#0A0E14] shadow-[0_0_18px_-3px_rgba(16,185,129,0.22),inset_0_0_12px_-3px_rgba(16,185,129,0.06)] hover:border-emerald-500/40 hover:shadow-[0_0_25px_-1px_rgba(16,185,129,0.32)] transition-all ${className}`}>
-      {children}
-    </section>
-  );
-}
 
 /* ----------------------- stat cards ----------------------- */
 
-function StatCard({ label, value, note, tone }: (typeof STATS)[number]) {
+function StatCard({ label, value, note, tone, href }: (typeof STATS)[number]) {
   return (
-    <Card className="p-5 flex flex-col gap-1">
-      <p className="text-[11px] font-medium text-[#9CA3AF] uppercase tracking-wide">{label}</p>
-      <p className={`text-3xl font-bold tabnum leading-none drop-shadow-[0_0_10px_currentColor] ${TONE_TEXT[tone]}`}>{value}</p>
-      <p className="mt-1 text-[11px] text-[#6B7280]">{note}</p>
-      <div className={`mt-2 h-1 rounded-full ${TONE_BG[tone]} overflow-hidden`}>
-        <div className={`h-full rounded-full ${TONE_TEXT[tone].replace("text-", "bg-")} shadow-[0_0_8px_currentColor]`} style={{ width: "60%" }} />
-      </div>
-    </Card>
+    <Link href={href} className="card card-link block p-4 sm:p-5">
+      <p className="flex items-center gap-2 text-xs text-muted">
+        <StatusDot tone={tone} />
+        <span className="min-w-0">{label}</span>
+      </p>
+      <p className="tabnum mt-2 text-3xl font-semibold leading-none tracking-tight text-fg">{value}</p>
+      <p className="mt-2 text-2xs text-muted">{note}</p>
+    </Link>
   );
 }
 
 function StatsRow() {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       {STATS.map((s) => <StatCard key={s.label} {...s} />)}
     </div>
   );
@@ -97,33 +75,39 @@ function StatsRow() {
 
 function DeniedRequestsChart() {
   const max = Math.max(...DENIED_24H.map((d) => d.value));
+  const total = DENIED_24H.reduce((a, b) => a + b.value, 0);
   return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-white">Denied requests · 24 h</h2>
-        <span className="text-[10px] text-[#6B7280] tabnum">{DENIED_24H.reduce((a, b) => a + b.value, 0)} total</span>
-      </div>
-      <div className="flex h-28 items-end gap-2 drop-shadow-[0_0_12px_rgba(6,182,212,0.3)]" role="img" aria-label="Denied requests per 4-hour window">
+    <Card title="Denied requests" aside={<span className="tabnum text-2xs text-muted">{total} in last 24 h</span>}>
+      <div className="flex h-40 items-stretch gap-2 border-b border-line pt-6 sm:gap-3">
         {DENIED_24H.map((d) => {
           const peak = d.value === max;
           const pct = (d.value / max) * 100;
           return (
-            <div key={d.label} className="flex flex-1 flex-col items-center gap-1.5">
-              <span className="text-[9px] text-[#6B7280] tabnum">{d.value}</span>
+            <div
+              key={d.label}
+              tabIndex={0}
+              aria-label={`${d.label} UTC: ${d.value} denied requests`}
+              className="group relative flex flex-1 items-end rounded-t focus-visible:outline-offset-0"
+            >
               <div
-                title={`${d.label}: ${d.value}`}
-                className={`w-full rounded-sm transition-all ${
-                  peak
-                    ? "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.9),0_0_24px_rgba(239,68,68,0.45)]"
-                    : "bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.85),0_0_20px_rgba(6,182,212,0.4)]"
-                }`}
-                style={{ height: `${pct}%`, minHeight: 4 }}
+                className={`w-full rounded-t transition-colors ${peak ? "bg-accent-light" : "bg-accent/60 group-hover:bg-accent"}`}
+                style={{ height: `${pct}%` }}
               />
-              <span className="text-[8px] text-[#6B7280]">{d.label}</span>
+              {peak && <span className="tabnum absolute inset-x-0 -top-5 text-center text-2xs text-fg group-hover:invisible group-focus-visible:invisible">{d.value}</span>}
+              <span
+                className="popover tabnum pointer-events-none absolute left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md px-2 py-1 text-2xs text-fg group-hover:block group-focus-visible:block"
+                style={{ bottom: `${pct}%` }}
+              >
+                {d.label}: {d.value}
+              </span>
             </div>
           );
         })}
       </div>
+      <div className="mt-1.5 flex gap-2 sm:gap-3" aria-hidden>
+        {DENIED_24H.map((d) => <span key={d.label} className="tabnum flex-1 text-center text-2xs text-muted">{d.label}</span>)}
+      </div>
+      <p className="mt-2 text-2xs text-muted">Requests per 4-hour window, UTC</p>
     </Card>
   );
 }
@@ -131,23 +115,17 @@ function DeniedRequestsChart() {
 /* ----------------------- service health ----------------------- */
 
 function ServiceHealth() {
+  const degraded = SERVICES.filter((s) => s.tone !== "ok").length;
   return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-white">Service health</h2>
-        <span className="flex items-center gap-1.5 text-[10px] text-emerald-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10B981]" />
-          Live
-        </span>
-      </div>
-      <ul className="space-y-3">
+    <Card title="Service health" aside={<span className="text-2xs text-muted">{SERVICES.length - degraded} of {SERVICES.length} live</span>}>
+      <ul className="divide-y divide-line">
         {SERVICES.map((s) => (
-          <li key={s.name} className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className={`h-2 w-2 rounded-full flex-shrink-0 ${TONE_TEXT[s.tone].replace("text-", "bg-")} shadow-[0_0_8px_currentColor]`} />
-              <span className="text-sm text-[#E5E7EB]">{s.name}</span>
-            </div>
-            <span className={`text-xs font-medium ${TONE_TEXT[s.tone]}`}>{s.status}</span>
+          <li key={s.name} className="flex items-center justify-between gap-3 py-2.5 first:pt-1 last:pb-0">
+            <span className="flex min-w-0 items-center gap-2.5">
+              <StatusDot tone={s.tone} />
+              <span className="truncate text-xs text-fg">{s.name}</span>
+            </span>
+            <span className={`shrink-0 text-2xs font-medium ${TONE_TEXT[s.tone]}`}>{s.status}</span>
           </li>
         ))}
       </ul>
@@ -155,159 +133,105 @@ function ServiceHealth() {
   );
 }
 
-/* ----------------------- live event feed ----------------------- */
+/* ----------------------- recent event feed ----------------------- */
 
 function ConfidenceBar({ value }: { value: number }) {
-  const segments = 20;
-  const filled = Math.round((value / 100) * segments);
   return (
-    <div className="flex items-center gap-[2px]" aria-hidden>
-      {Array.from({ length: segments }).map((_, i) => {
-        const hue = 10 + (i / (segments - 1)) * 110;
-        const isFilled = i < filled;
-        return (
-          <span
-            key={i}
-            className="h-2.5 w-[3px] rounded-[1px] transition-all"
-            style={{
-              background: isFilled ? `hsl(${hue} 90% 55%)` : "rgba(255,255,255,0.07)",
-              boxShadow: isFilled ? `0 0 6px hsl(${hue} 90% 55%)` : "none",
-            }}
-          />
-        );
-      })}
+    <div className="h-1 w-16 overflow-hidden rounded-full bg-raised" aria-hidden>
+      <div className="h-full rounded-full bg-accent" style={{ width: `${value}%` }} />
     </div>
-  );
-}
-
-function OutcomeBadge({ outcome, tone }: { outcome: string; tone: Tone }) {
-  const cls: Record<Tone, string> = {
-    green: "bg-emerald-400/10 text-emerald-400 border-emerald-400/20",
-    red:   "bg-red-400/10 text-red-400 border-red-400/20",
-    amber: "bg-amber-400/10 text-amber-400 border-amber-400/20",
-    cyan:  "bg-cyan-400/10 text-cyan-300 border-cyan-400/20",
-  };
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${cls[tone]}`}>
-      {outcome}
-    </span>
   );
 }
 
 function EventRow({ e }: { e: (typeof EVENTS)[number] }) {
   return (
-    <tr className="border-t border-white/[0.05] transition hover:bg-white/[0.025] group">
-      <td className="whitespace-nowrap px-4 py-3 font-mono text-[12px] text-[#6B7280]">{e.time}</td>
-      <td className="whitespace-nowrap px-4 py-3 font-mono text-[12px] font-semibold text-white">{e.workload}</td>
-      <td className="px-4 py-3 text-sm text-[#E5E7EB]">{e.event}</td>
-      <td className="whitespace-nowrap px-4 py-3">
-        <OutcomeBadge outcome={e.outcome} tone={e.tone} />
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-3">
+    <tr>
+      <td className="tabnum whitespace-nowrap font-mono text-muted">{e.time}</td>
+      <td className="whitespace-nowrap font-mono text-fg">{e.workload}</td>
+      <td className="text-fg">{e.event}</td>
+      <td className="whitespace-nowrap"><Badge tone={e.tone}>{e.outcome}</Badge></td>
+      <td>
+        <span className="flex items-center gap-2.5">
           <ConfidenceBar value={e.confidence} />
-          <span className="w-9 text-xs text-[#9CA3AF] tabnum">{e.confidence}%</span>
-          <Link
-            href={e.href}
-            aria-label={`View details for ${e.workload}`}
-            className="grid h-7 w-7 place-items-center rounded-md bg-white/[0.08] text-white/60 text-xs transition hover:bg-white/[0.15] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-          >
-            →
-          </Link>
-        </div>
+          <span className="tabnum text-muted">{e.confidence}%</span>
+        </span>
+      </td>
+      <td className="text-right">
+        <Link href={e.href} aria-label={`View event details for ${e.workload}`} className="link whitespace-nowrap">Details</Link>
       </td>
     </tr>
   );
 }
 
-function LiveEventFeed() {
+function RecentEvents() {
+  const [query, setQuery] = useState("");
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? EVENTS.filter((e) => `${e.workload} ${e.event} ${e.outcome}`.toLowerCase().includes(q)) : EVENTS;
+  }, [query]);
+
   return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center justify-between px-5 pt-5 pb-3">
-        <h2 className="text-sm font-semibold text-white">Live event feed</h2>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-[10px] text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Live tail on
-          </span>
-          <Link
-            href="/event-explorer"
-            className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors"
-          >
-            View all →
-          </Link>
+    <Card
+      flush
+      title="Recent events"
+      aside={
+        <div className="flex w-full items-center gap-3 sm:w-auto">
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            placeholder="Filter by workload or event…"
+            label="Filter recent events"
+            className="flex-1 sm:w-64"
+          />
+          <Link href="/event-explorer" className="link shrink-0 text-xs">View all</Link>
         </div>
-      </div>
+      }
+    >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left">
+        <table className="data-table min-w-[780px]">
           <thead>
-            <tr className="text-xs text-[#6B7280] border-b border-white/[0.05]">
-              {["Time", "Workload", "Event", "Outcome", "Confidence"].map((h) => (
-                <th key={h} className="px-4 py-2.5 font-medium">{h}</th>
-              ))}
+            <tr>
+              {["Time", "Workload", "Event", "Outcome", "Confidence"].map((h) => <th key={h} scope="col">{h}</th>)}
+              <th scope="col" aria-label="Details" />
             </tr>
           </thead>
-          <tbody>{EVENTS.map((e) => <EventRow key={e.time} e={e} />)}</tbody>
+          <tbody>{rows.map((e) => <EventRow key={e.time} e={e} />)}</tbody>
         </table>
       </div>
+      {rows.length === 0 && (
+        <EmptyState title="No events match this filter" action={<Button size="sm" onClick={() => setQuery("")}>Clear filter</Button>}>
+          Five recent events are loaded. Try a workload name such as build-runner.
+        </EmptyState>
+      )}
     </Card>
-  );
-}
-
-/* ---------------------- search bar ---------------------- */
-
-function SearchBar() {
-  return (
-    <div className="relative flex items-center">
-      <div className="pointer-events-none absolute left-3 text-[#6B7280]">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-        </svg>
-      </div>
-      <input
-        type="search"
-        placeholder="Search workload, run ID, request ID…"
-        aria-label="Search workloads, runs and requests"
-        className="h-10 w-full rounded-lg border border-emerald-500/25 bg-[#0A0E14] pl-9 pr-4 text-sm text-[#E5E7EB] placeholder:text-[#6B7280] shadow-[0_0_15px_-3px_rgba(16,185,129,0.18)] focus:border-emerald-500/50 focus:shadow-[0_0_20px_rgba(16,185,129,0.3)] focus:outline-none transition-all"
-      />
-      <div className="absolute right-3 flex items-center gap-2">
-        <span className="rounded-md border border-white/[0.07] px-1.5 py-0.5 text-[10px] text-[#6B7280]">Last 24 h</span>
-        <span className="rounded-md border border-amber-400/40 px-1.5 py-0.5 text-[10px] text-amber-300">Sample</span>
-      </div>
-    </div>
   );
 }
 
 /* ----------------------------- page ----------------------------- */
 
 export default function OverviewPage() {
-  return (
-    <div className="space-y-4 p-4 sm:p-6">
-      {/* Page header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Company health overview</h1>
-          <p className="mt-0.5 text-xs text-[#6B7280]">Thu, 26 Feb 2026 · synced 3 min ago</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.03] px-3 py-1 text-[11px] text-[#9CA3AF]">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            All systems operational
-          </span>
-          <a
-            href="#export"
-            onClick={(e) => { e.preventDefault(); alert("Export functionality: CSV/JSON export would download here"); }}
-            className="flex items-center gap-1.5 rounded-lg bg-white/[0.06] border border-white/[0.08] px-3 py-1.5 text-xs font-medium text-white hover:bg-white/[0.1] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" />
-            </svg>
-            Export
-          </a>
-        </div>
-      </div>
+  const degraded = SERVICES.filter((s) => s.tone !== "ok").length;
+  const exportSnapshot = () =>
+    downloadFile(
+      "attesta-overview-sample.json",
+      "application/json",
+      JSON.stringify({ dataSource: "sample", stats: STATS, deniedRequests24h: DENIED_24H, services: SERVICES, events: EVENTS }, null, 2),
+    );
 
-      <SearchBar />
+  return (
+    <div className="page">
+      <PageHeader
+        title="Security overview"
+        subtitle="Thu, 26 Feb 2026 · last 24 hours"
+        badges={
+          <>
+            <SampleBadge />
+            {degraded > 0 && <Badge tone="warn">{degraded} service degraded</Badge>}
+          </>
+        }
+        actions={<Button onClick={exportSnapshot}>Export JSON</Button>}
+      />
+
       <StatsRow />
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
@@ -315,7 +239,7 @@ export default function OverviewPage() {
         <ServiceHealth />
       </div>
 
-      <LiveEventFeed />
+      <RecentEvents />
     </div>
   );
 }

@@ -1,9 +1,14 @@
-"use client";
+﻿"use client";
 // src/app/runtime-monitoring/page.tsx
-// Attesta — Runtime Monitoring (runtime agent audit events).
-// Dark fintech SaaS design. Tailwind only; no new dependencies.
+// Attesta â€” Runtime Monitoring (runtime agent audit events).
+// Tailwind only; no new dependencies.
 
 import { useMemo, useState, type ReactNode } from "react";
+import PageHeader from "@/src/components/ui/PageHeader";
+import {
+  Badge, Button, EmptyState, SampleBadge, SearchField, SortHeader, useSort, type Tone,
+} from "@/src/components/ui/primitives";
+import { downloadFile, toCsv } from "@/src/lib/download";
 
 /* ------------------------- types + tokens ------------------------- */
 
@@ -18,11 +23,10 @@ type Template = Omit<AuditEvent, "id" | "time" | "details"> & { detail: (h: stri
 type Slice = { label: string; value: number; color: string };
 
 const SEVERITIES: Severity[] = ["High", "Medium", "Low"];
-const SEVERITY_COLOR: Record<Severity, string> = { High: "#ef4444", Medium: "#f59e0b", Low: "#10b981" };
+const SEVERITY_COLOR: Record<Severity, string> = { High: "var(--critical)", Medium: "var(--warning)", Low: "var(--info)" };
+const SEVERITY_TONE: Record<Severity, Tone> = { High: "crit", Medium: "warn", Low: "neutral" };
+const SEVERITY_RANK: Record<Severity, number> = { High: 2, Medium: 1, Low: 0 };
 const LIMITS = [25, 50, 100, 500];
-
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
-const CARD = "rounded-xl border border-white/[0.07] bg-[#0D1117]";
 
 /* ----------------------------- sample data ----------------------------- */
 
@@ -98,47 +102,19 @@ function applyFilters(rows: AuditEvent[], f: Filters): AuditEvent[] {
 
 /* ------------------------------ export ------------------------------ */
 
-function download(name: string, mime: string, text: string) {
-  try {
-    const url = URL.createObjectURL(new Blob([text], { type: mime }));
-    const a = document.createElement("a");
-    a.href = url; a.download = name; a.click();
-    URL.revokeObjectURL(url);
-  } catch {
-    /* download unavailable in this environment */
-  }
-}
+const CSV_COLUMNS = ["Time", "Action", "Severity", "User", "Details", "Comm", "Status"];
 
-function toCsv(rows: AuditEvent[]): string {
-  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const head = ["Time", "Action", "Severity", "User", "Details", "Comm", "Status"].join(",");
-  return [head, ...rows.map((e) => [e.time, e.action, e.severity, e.user, e.details, e.comm, e.status].map(esc).join(","))].join("\n");
-}
-
-/* --------------------------- primitives --------------------------- */
-
-function ActionButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className={`h-8 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 text-xs font-medium text-white transition hover:bg-white/[0.08] ${FOCUS}`}>
-      {children}
-    </button>
-  );
+function eventsToCsv(rows: AuditEvent[]): string {
+  return toCsv(CSV_COLUMNS, rows.map((e) => [e.time, e.action, e.severity, e.user, e.details, e.comm, e.status]));
 }
 
 /* ------------------------------ filter rail ------------------------------ */
 
 function FilterButton({ label, count, active, onClick }: { label: string; count: number; active: boolean; onClick: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition ${FOCUS} ${
-        active
-          ? "border-emerald-400/40 bg-emerald-400/10 font-semibold text-emerald-300"
-          : "border-white/[0.06] bg-white/[0.02] text-slate-300 hover:bg-white/[0.05] hover:text-white"
-      }`}
-    >
-      {label} ({count})
+    <button type="button" onClick={onClick} aria-pressed={active} className="chip w-full justify-between">
+      <span className="truncate">{label}</span>
+      <span className="tabnum">{count}</span>
     </button>
   );
 }
@@ -146,8 +122,8 @@ function FilterButton({ label, count, active, onClick }: { label: string; count:
 function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{title}</h3>
-      <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">{children}</div>
+      <h3 className="mb-2 text-2xs font-medium text-muted">{title}</h3>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 lg:grid-cols-1">{children}</div>
     </div>
   );
 }
@@ -159,19 +135,18 @@ function FilterRail({ base, filters, onChange }: { base: AuditEvent[]; filters: 
     [base],
   );
   return (
-    <aside aria-label="Filters" className="space-y-5 border-b border-white/[0.07] bg-[#0A0F1A] p-4 lg:border-b-0 lg:border-r">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-white">Filters</h2>
+    <aside aria-label="Filters" className="card min-w-0 space-y-5 self-start p-4">
+      <h2 className="text-base font-semibold text-fg">Filters</h2>
       <div>
-        <label htmlFor="event-limit" className="mb-1 block text-[10px] font-medium text-slate-400">Number of events</label>
+        <label htmlFor="event-limit" className="field-label">Maximum events</label>
         <select
           id="event-limit"
           value={filters.limit}
           onChange={(e) => onChange({ ...filters, limit: Number(e.target.value) })}
-          className={`h-8 w-full rounded-lg border border-white/[0.08] bg-[#0D1117] px-2.5 text-xs text-slate-200 ${FOCUS}`}
+          className="field"
         >
-          {LIMITS.map((n) => <option key={n} value={n} className="bg-[#0D1117]">{n}</option>)}
+          {LIMITS.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
-        <p className="mt-1 text-[9px] text-slate-500">Maximum audit records to display</p>
       </div>
       <FilterGroup title="Severity">
         <FilterButton label="All" count={base.length} active={filters.severity === "All"} onClick={() => onChange({ ...filters, severity: "All" })} />
@@ -200,7 +175,11 @@ function PieSlice({ slice, start, end }: { slice: Slice; start: number; end: num
   const [x1, y1] = polar(100, 100, 100, start);
   const [x2, y2] = polar(100, 100, 100, end);
   const large = end - start > 180 ? 1 : 0;
-  return <path d={`M100 100 L${x1} ${y1} A100 100 0 ${large} 1 ${x2} ${y2} Z`} fill={slice.color} />;
+  return (
+    <path d={`M100 100 L${x1} ${y1} A100 100 0 ${large} 1 ${x2} ${y2} Z`} fill={slice.color} stroke="var(--surface)" strokeWidth="2">
+      <title>{`${slice.label}: ${slice.value}`}</title>
+    </path>
+  );
 }
 
 function Pie({ slices, label }: { slices: Slice[]; label: string }) {
@@ -208,8 +187,8 @@ function Pie({ slices, label }: { slices: Slice[]; label: string }) {
   const total = live.reduce((n, s) => n + s.value, 0);
   let angle = 0;
   return (
-    <svg viewBox="0 0 200 200" role="img" aria-label={label} className="mx-auto h-[120px] w-[120px] viz-glow-multi">
-      {total === 0 && <circle cx="100" cy="100" r="100" fill="#1a2845" />}
+    <svg viewBox="0 0 200 200" role="img" aria-label={label} className="h-24 w-24 shrink-0">
+      {total === 0 && <circle cx="100" cy="100" r="100" fill="var(--surface-elevated)" />}
       {live.length === 1 && <circle cx="100" cy="100" r="100" fill={live[0].color} />}
       {live.length > 1 && live.map((s) => {
         const start = angle;
@@ -222,11 +201,12 @@ function Pie({ slices, label }: { slices: Slice[]; label: string }) {
 
 function Legend({ slices }: { slices: Slice[] }) {
   return (
-    <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[10px] text-slate-300">
+    <ul className="min-w-0 flex-1 space-y-1.5 text-xs text-fg">
       {slices.map((s) => (
-        <li key={s.label} className="flex items-center gap-1.5">
-          <span aria-hidden className="h-1.5 w-5 rounded-full" style={{ background: s.color }} />
-          {s.label} ({s.value})
+        <li key={s.label} className="flex items-center gap-2">
+          <span aria-hidden className="h-2 w-2 shrink-0 rounded-sm" style={{ background: s.color }} />
+          <span className="flex-1 truncate">{s.label}</span>
+          <span className="tabnum text-muted">{s.value}</span>
         </li>
       ))}
     </ul>
@@ -235,10 +215,12 @@ function Legend({ slices }: { slices: Slice[] }) {
 
 function ChartCard({ title, slices }: { title: string; slices: Slice[] }) {
   return (
-    <section className={`${CARD} p-4`}>
-      <h3 className="mb-2 text-xs font-semibold text-white">{title}</h3>
-      <Pie slices={slices} label={`${title} ${slices.map((s) => `${s.label} ${s.value}`).join(", ")}`} />
-      <Legend slices={slices} />
+    <section className="card min-w-0 p-4">
+      <h3 className="mb-3 text-sm font-semibold text-fg">{title}</h3>
+      <div className="flex items-center gap-5">
+        <Pie slices={slices} label={`${title}: ${slices.map((s) => `${s.label} ${s.value}`).join(", ")}`} />
+        <Legend slices={slices} />
+      </div>
     </section>
   );
 }
@@ -248,59 +230,73 @@ function Charts({ rows }: { rows: AuditEvent[] }) {
   const severitySlices: Slice[] = SEVERITIES.map((s) => ({ label: s, value: sev.get(s) ?? 0, color: SEVERITY_COLOR[s] }));
   const active = AGENTS.filter((a) => a.active).length;
   const agentSlices: Slice[] = [
-    { label: "Active", value: active, color: "#10b981" },
-    { label: "Inactive", value: AGENTS.length - active, color: "#ef4444" },
+    { label: "Active", value: active, color: "var(--success)" },
+    { label: "Inactive", value: AGENTS.length - active, color: "var(--critical)" },
   ];
   return (
-    <div className="grid gap-3 md:grid-cols-2">
-      <ChartCard title="Events by Severity" slices={severitySlices} />
-      <ChartCard title="Runtime Agents" slices={agentSlices} />
+    <div className="grid gap-4 md:grid-cols-2">
+      <ChartCard title="Events by severity" slices={severitySlices} />
+      <ChartCard title="Runtime agents" slices={agentSlices} />
     </div>
   );
 }
 
 /* ------------------------------- table ------------------------------- */
 
-const ACTION_BADGE: Record<string, string> = {
-  create:  "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20",
-  delete:  "bg-red-400/10 text-red-400 border border-red-400/20",
-  exec:    "bg-red-400/10 text-red-400 border border-red-400/20",
-  connect: "bg-amber-400/10 text-amber-400 border border-amber-400/20",
-  read:    "bg-amber-400/10 text-amber-400 border border-amber-400/20",
+const ACTION_TONE: Record<string, Tone> = {
+  delete:  "crit",
+  exec:    "crit",
+  connect: "warn",
+  read:    "warn",
 };
 
 function EventRow({ e }: { e: AuditEvent }) {
   return (
-    <tr className="border-t border-white/[0.05] text-[11px] text-slate-200 hover:bg-white/[0.025]">
-      <td className="whitespace-nowrap px-4 py-2.5 font-mono text-slate-400">{e.time}</td>
-      <td className="px-3 py-2.5">
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold ${ACTION_BADGE[e.action] ?? "bg-slate-700/60 text-slate-300"}`}>{e.action}</span>
-      </td>
-      <td className="px-3 py-2.5 font-medium">{e.severity}</td>
-      <td className="px-3 py-2.5 text-slate-400">{e.user}</td>
-      <td className="max-w-[420px] px-3 py-2.5"><span className="block truncate text-white/90" title={e.details}>{e.details}</span></td>
-      <td className="px-3 py-2.5 font-mono text-slate-300">{e.comm}</td>
-      <td className="whitespace-nowrap px-4 py-2.5 text-slate-400">{e.status}</td>
+    <tr>
+      <td className="tabnum whitespace-nowrap font-mono text-2xs text-muted">{e.time}</td>
+      <td><Badge tone={ACTION_TONE[e.action] ?? "neutral"}>{e.action}</Badge></td>
+      <td><Badge tone={SEVERITY_TONE[e.severity]}>{e.severity}</Badge></td>
+      <td className="text-muted">{e.user}</td>
+      <td className="max-w-[280px]"><span className="block truncate text-fg" title={e.details}>{e.details}</span></td>
+      <td className="font-mono text-2xs text-muted">{e.comm}</td>
+      <td className="whitespace-nowrap text-muted">{e.status}</td>
     </tr>
   );
 }
 
-function EventTable({ rows }: { rows: AuditEvent[] }) {
+type SortKey = "time" | "action" | "severity" | "comm";
+
+const SORT_ACCESSORS: Record<SortKey, (e: AuditEvent) => string | number> = {
+  time:     (e) => e.time,
+  action:   (e) => e.action,
+  severity: (e) => SEVERITY_RANK[e.severity],
+  comm:     (e) => e.comm,
+};
+
+function EventTable({ rows, onReset }: { rows: AuditEvent[]; onReset: () => void }) {
+  const { sorted, sort, toggle } = useSort(rows, SORT_ACCESSORS, { key: "time", dir: "desc" });
   return (
-    <div className={`${CARD} overflow-hidden`}>
+    <div className="card min-w-0 overflow-hidden">
       <div className="max-h-[520px] overflow-auto">
-        <table className="w-full min-w-[820px] text-left">
-          <thead className="sticky top-0 bg-[#0D1117] border-b border-white/[0.06]">
-            <tr className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-              {["Time", "Action", "Severity", "User", "Details", "Comm", "Status"].map((h, i) => (
-                <th key={h} scope="col" className={`py-2.5 ${i === 0 ? "px-4" : i === 6 ? "px-4" : "px-3"}`}>{h}</th>
-              ))}
+        <table className="data-table min-w-[880px]">
+          <thead className="sticky top-0 z-10 bg-card">
+            <tr>
+              <SortHeader label="Time" sortKey="time" sort={sort} onSort={toggle} />
+              <SortHeader label="Action" sortKey="action" sort={sort} onSort={toggle} />
+              <SortHeader label="Severity" sortKey="severity" sort={sort} onSort={toggle} />
+              <th scope="col">User</th>
+              <th scope="col">Details</th>
+              <SortHeader label="Comm" sortKey="comm" sort={sort} onSort={toggle} />
+              <th scope="col">Status</th>
             </tr>
           </thead>
-          <tbody>{rows.map((e) => <EventRow key={e.id} e={e} />)}</tbody>
+          <tbody>{sorted.map((e) => <EventRow key={e.id} e={e} />)}</tbody>
         </table>
-        {rows.length === 0 && <p className="px-4 py-8 text-center text-xs text-slate-400">No events match these filters.</p>}
+        {rows.length === 0 && (
+          <EmptyState title="No events match these filters" action={<Button size="sm" onClick={onReset}>Reset filters</Button>} />
+        )}
       </div>
+      <p className="border-t border-line px-5 py-3 text-2xs text-muted">{rows.length} sample events Â· snapshot {SNAPSHOT_TIME}</p>
     </div>
   );
 }
@@ -308,23 +304,21 @@ function EventTable({ rows }: { rows: AuditEvent[] }) {
 /* ------------------------------ toolbar ------------------------------ */
 
 function Toolbar({
-  query, onQuery, onRefresh, onCsv, onJson, updated,
-}: { query: string; onQuery: (v: string) => void; onRefresh: () => void; onCsv: () => void; onJson: () => void; updated: string }) {
+  query, onQuery, onCsv, onJson,
+}: { query: string; onQuery: (v: string) => void; onCsv: () => void; onJson: () => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <h2 className="text-sm font-semibold text-white mr-1">Audit Events</h2>
-      <input
-        type="search"
+      <h2 className="mr-1 text-base font-semibold text-fg">Audit events</h2>
+      <SearchField
         value={query}
-        onChange={(e) => onQuery(e.target.value)}
-        placeholder="Search visible rows..."
-        aria-label="Search visible rows"
-        className={`h-8 min-w-[180px] flex-1 rounded-lg border border-white/[0.08] bg-[#0D1117] px-3 text-xs text-slate-200 placeholder:text-slate-500 ${FOCUS}`}
+        onChange={onQuery}
+        placeholder="Search visible rowsâ€¦"
+        label="Search visible rows"
+        className="min-w-[180px] flex-1"
       />
-      <ActionButton onClick={onRefresh}>Refresh</ActionButton>
-      <ActionButton onClick={onCsv}>Export CSV</ActionButton>
-      <ActionButton onClick={onJson}>Export JSON</ActionButton>
-      <span className="text-[10px] text-slate-500 whitespace-nowrap">Updated: {updated}</span>
+      <Button disabled title="Runtime agent feed not connected">Refresh</Button>
+      <Button onClick={onCsv}>Export CSV</Button>
+      <Button onClick={onJson}>Export JSON</Button>
     </div>
   );
 }
@@ -332,42 +326,34 @@ function Toolbar({
 /* --------------------------------- page --------------------------------- */
 
 const INITIAL: Filters = { limit: 500, severity: "All", activity: "All", query: "" };
+const SNAPSHOT_TIME = "2026-02-26 14:08:22";
 
 export default function RuntimeMonitoringPage() {
   const [filters, setFilters] = useState<Filters>(INITIAL);
-  const [updated, setUpdated] = useState("2026-02-26 14:08:22");
 
   const base = useMemo(() => EVENTS.slice(0, filters.limit), [filters.limit]);
   const rows = useMemo(() => applyFilters(base, filters), [base, filters]);
 
-  const refresh = () => setUpdated(new Date().toISOString().replace("T", " ").slice(0, 19));
-
   return (
-    <div className="space-y-4 p-4 sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">Runtime Monitoring</h1>
-          <p className="mt-0.5 text-xs text-slate-400">Real-time eBPF and kernel audit telemetry for build runners</p>
-        </div>
-        <span className="rounded-full border border-amber-400/60 px-2.5 py-0.5 text-[10px] font-medium text-amber-300">
-          Sample data
-        </span>
-      </div>
+    <div className="page">
+      <PageHeader
+        title="Runtime Monitoring"
+        subtitle="eBPF and kernel audit telemetry from build runners"
+        badges={<SampleBadge />}
+      />
 
-      <div className="grid overflow-hidden rounded-xl border border-white/[0.07] bg-[#0D1117] lg:grid-cols-[210px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
         <FilterRail base={base} filters={filters} onChange={setFilters} />
-        <main className="min-w-0 space-y-4 p-4 sm:p-5">
+        <div className="min-w-0 space-y-4">
           <Toolbar
             query={filters.query}
             onQuery={(query) => setFilters({ ...filters, query })}
-            onRefresh={refresh}
-            onCsv={() => download("runtime-events.csv", "text/csv", toCsv(rows))}
-            onJson={() => download("runtime-events.json", "application/json", JSON.stringify(rows, null, 2))}
-            updated={updated}
+            onCsv={() => downloadFile("runtime-events-sample.csv", "text/csv", eventsToCsv(rows))}
+            onJson={() => downloadFile("runtime-events-sample.json", "application/json", JSON.stringify(rows, null, 2))}
           />
           <Charts rows={rows} />
-          <EventTable rows={rows} />
-        </main>
+          <EventTable rows={rows} onReset={() => setFilters(INITIAL)} />
+        </div>
       </div>
     </div>
   );

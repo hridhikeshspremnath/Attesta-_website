@@ -2,32 +2,23 @@
 
 // src/app/provenance/page.tsx
 // Attesta — Provenance & Verification & Correlated Event Explorer.
-// Dark fintech SaaS design. Tailwind only; no new dependencies.
+// Tailwind only; no new dependencies.
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import Link from "next/link";
-
-/* ------------------------- tokens ------------------------- */
-
-const MUTED   = "text-slate-400";
-const DIVIDER = "border-white/[0.07]";
-const FOCUS   = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
+import PageHeader from "@/src/components/ui/PageHeader";
+import {
+  Badge, Button, ButtonLink, Card, CopyButton, EmptyState, FilterSelect, SampleBadge, SearchField, type Tone,
+} from "@/src/components/ui/primitives";
+import { downloadFile } from "@/src/lib/download";
 
 /* ----------------------------- data ----------------------------- */
 
 type Severity = "High" | "Medium" | "Info";
-const SEVERITY_TONE: Record<Severity, string> = {
-  High:   "text-red-400 bg-red-400/10 border-red-400/20",
-  Medium: "text-amber-400 bg-amber-400/10 border-amber-400/20",
-  Info:   "text-slate-400 bg-slate-400/10 border-slate-400/20",
-};
-
-const TOTAL_EVENTS = 214;
+const SEVERITY_TONE: Record<Severity, Tone> = { High: "crit", Medium: "warn", Info: "neutral" };
 
 type EventRow = { id: string; time: string; workload: string; event: string; source: string; severity: Severity };
 type Evidence = { label: string; value: string; href?: string };
-
-const FILTERS = ["Last 24 h", "Severity: any", "Source: any", "Workload: any", "Run ID", "Request ID"];
 
 const EVENTS: EventRow[] = [
   { id: "e1", time: "14:02:11", workload: "build-runner-1842", event: "Read protected secret denied", source: "OPA", severity: "High" },
@@ -50,7 +41,7 @@ const DETAIL = {
     evidence: [
       { label: "OPA rule", value: "secrets.read v7", href: "/access-policies" },
       { label: "Workload and SVID", value: "build-runner-1842", href: "/workload-identity" },
-      { label: "Trust decision", value: "Review", href: "/access-policies" },
+      { label: "Trust decision", value: "Review", href: "/trust-decisions" },
       { label: "GitHub run", value: "#1842", href: "/pipeline-runs" },
       { label: "Runtime alert", value: "Credential access", href: "/runtime-monitoring" },
       { label: "Signed record", value: "tx 0x8f4d92a1", href: "/trust-ledger" },
@@ -63,13 +54,6 @@ const FALLBACK_IDS: Evidence[] = [
   { label: "Request ID", value: "req-gen-102938" },
   { label: "Trace ID", value: "trace-gen-7718" },
 ];
-
-type Tone = "green" | "amber" | "red";
-const TONE_TEXT: Record<Tone, string> = {
-  green: "text-emerald-400",
-  amber: "text-amber-400",
-  red:   "text-red-400",
-};
 
 type Row = { label: string; value: string; accent?: boolean; href?: string };
 type Check = { name: string; detail: string; result: string; tone: Tone };
@@ -87,149 +71,91 @@ const BUILD: Row[] = [
 ];
 
 const INITIAL_CHECKS: Check[] = [
-  { name: "Signature", detail: "Checked against signer public key", result: "Valid", tone: "green" },
-  { name: "Trusted signer", detail: "Signer certificate is in the trusted consortium set", result: "Valid", tone: "green" },
-  { name: "Record integrity", detail: "SHA-256 stored record matches cryptographic payload", result: "Valid", tone: "green" },
-  { name: "Ledger match", detail: "Hyperledger Fabric state equals signed attestation", result: "Not yet verified", tone: "amber" },
+  { name: "Signature", detail: "Checked against signer public key", result: "Valid", tone: "ok" },
+  { name: "Trusted signer", detail: "Signer certificate is in the trusted consortium set", result: "Valid", tone: "ok" },
+  { name: "Record integrity", detail: "SHA-256 stored record matches cryptographic payload", result: "Valid", tone: "ok" },
+  { name: "Ledger match", detail: "Hyperledger Fabric state equals signed attestation", result: "Not yet verified", tone: "warn" },
 ];
 
-/* --------------------------- primitives --------------------------- */
+const SEVERITY_OPTIONS = ["any", "High", "Medium", "Info"];
+const SOURCE_OPTIONS   = ["any", ...Array.from(new Set(EVENTS.map((e) => e.source)))];
+const WORKLOAD_OPTIONS = ["any", ...Array.from(new Set(EVENTS.map((e) => e.workload)))];
 
-function Card({ title, action, children }: { title?: string; action?: ReactNode; children: ReactNode }) {
-  return (
-    <section className="rounded-xl border border-white/[0.07] bg-[#0D1117] p-5">
-      {(title || action) && (
-        <div className="mb-3 flex items-center justify-between gap-3">
-          {title && <h2 className="text-sm font-semibold text-white">{title}</h2>}
-          {action}
-        </div>
-      )}
-      {children}
-    </section>
-  );
-}
+type Filters = { query: string; severity: string; source: string; workload: string };
 
-function OutlineButton({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`h-8 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 text-xs font-medium text-white transition hover:bg-white/[0.08] ${FOCUS}`}
-    >
-      {children}
-    </button>
-  );
+const INITIAL_FILTERS: Filters = { query: "", severity: "any", source: "any", workload: "any" };
+
+function matchesFilters(e: EventRow, f: Filters): boolean {
+  if (f.severity !== "any" && e.severity !== f.severity) return false;
+  if (f.source   !== "any" && e.source   !== f.source)   return false;
+  if (f.workload !== "any" && e.workload !== f.workload) return false;
+  const q = f.query.trim().toLowerCase();
+  return !q || [e.workload, e.event, e.source, e.severity].some((v) => v.toLowerCase().includes(q));
 }
 
 /* ------------------------- event explorer ------------------------- */
 
-function SearchBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function FilterBar({ filters, onChange }: { filters: Filters; onChange: (f: Filters) => void }) {
+  const dirty = filters.severity !== "any" || filters.source !== "any" || filters.workload !== "any" || filters.query !== "";
   return (
-    <div className="relative">
-      <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-          <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-        </svg>
-      </div>
-      <input
-        type="search"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label="Search events"
-        placeholder="Search events, IDs, SPIFFE IDs, rules..."
-        className={`w-full rounded-xl border border-white/[0.07] bg-[#0A0F1A] pl-9 pr-4 py-2.5 text-xs text-white placeholder:text-slate-500 ${FOCUS}`}
-      />
+    <div className="flex flex-wrap items-center gap-2">
+      <FilterSelect name="Severity" value={filters.severity} options={SEVERITY_OPTIONS} onChange={(severity) => onChange({ ...filters, severity })} />
+      <FilterSelect name="Source"   value={filters.source}   options={SOURCE_OPTIONS}   onChange={(source) => onChange({ ...filters, source })} />
+      <FilterSelect name="Workload" value={filters.workload} options={WORKLOAD_OPTIONS} onChange={(workload) => onChange({ ...filters, workload })} />
+      {dirty && <Button size="sm" onClick={() => onChange(INITIAL_FILTERS)}>Reset</Button>}
     </div>
   );
 }
 
-function FilterBar() {
-  const [activeFilter, setActiveFilter] = useState("Last 24 h");
+function EventTable({ rows, selected, onSelect, onReset }: { rows: EventRow[]; selected: string; onSelect: (id: string) => void; onReset: () => void }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex flex-wrap gap-1.5">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            onClick={() => setActiveFilter(f)}
-            className={`rounded-full border px-2.5 py-0.5 text-[10px] font-medium transition ${FOCUS} ${
-              activeFilter === f
-                ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-300"
-                : "border-white/[0.1] text-slate-300 hover:bg-white/[0.05] hover:text-white"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
-      <button
-        onClick={() => alert("Filter configuration saved to profile preferences.")}
-        className={`text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors ${FOCUS}`}
-      >
-        Save filter
-      </button>
-    </div>
-  );
-}
-
-function EventTable({ rows, selected, onSelect }: { rows: EventRow[]; selected: string; onSelect: (id: string) => void }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-white/[0.07] bg-[#0A0F1A]">
+    <div className="well min-w-0 overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-left text-xs">
+        <table className="data-table min-w-[620px]">
           <thead>
-            <tr className={`border-b text-slate-400 ${DIVIDER}`}>
-              {["Time", "Workload", "Event", "Source", "Severity"].map((h, i) => (
-                <th key={h} scope="col" className={`py-2.5 font-medium ${i === 0 ? "px-4" : "px-3"}`}>{h}</th>
-              ))}
+            <tr>
+              {["Time", "Workload", "Event", "Source", "Severity"].map((h) => <th key={h} scope="col">{h}</th>)}
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
-              const active = r.id === selected;
-              return (
-                <tr
-                  key={r.id}
-                  onClick={() => onSelect(r.id)}
-                  aria-selected={active}
-                  className={`cursor-pointer border-t transition-colors ${DIVIDER} ${active ? "bg-[#111d36]" : "hover:bg-white/[0.025]"}`}
-                >
-                  <td className={`py-2.5 px-4 font-mono text-[11px] ${MUTED}`}>{r.time}</td>
-                  <td className="py-2.5 px-3 font-mono font-semibold text-white">
-                    {r.workload}
-                  </td>
-                  <td className="py-2.5 px-3 font-medium text-white/90">{r.event}</td>
-                  <td className={`py-2.5 px-3 ${MUTED}`}>{r.source}</td>
-                  <td className="py-2.5 px-3 pr-4">
-                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-semibold ${SEVERITY_TONE[r.severity]}`}>
-                      {r.severity}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
+            {rows.map((r) => (
+              <tr
+                key={r.id}
+                tabIndex={0}
+                aria-current={r.id === selected ? "true" : undefined}
+                onClick={() => onSelect(r.id)}
+                onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onSelect(r.id); } }}
+                className="cursor-pointer"
+              >
+                <td className="tabnum font-mono text-muted">{r.time}</td>
+                <td className="whitespace-nowrap font-mono text-fg">{r.workload}</td>
+                <td className="text-fg">{r.event}</td>
+                <td className="whitespace-nowrap text-muted">{r.source}</td>
+                <td><Badge tone={SEVERITY_TONE[r.severity]}>{r.severity}</Badge></td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
-      <p className={`border-t px-4 py-2.5 text-[10px] ${DIVIDER} ${MUTED}`}>{rows.length} of {TOTAL_EVENTS} events · live tail on</p>
+      {rows.length === 0 && (
+        <EmptyState title="No events match these filters" action={<Button size="sm" onClick={onReset}>Reset filters</Button>} />
+      )}
+      <p className="border-t border-line px-5 py-2.5 text-2xs text-muted">{rows.length} of {EVENTS.length} sample events for run {RUN}</p>
     </div>
   );
 }
 
 function KeyValue({ items, mono }: { items: Evidence[]; mono?: boolean }) {
   return (
-    <dl className="divide-y divide-white/[0.05]">
+    <dl className="divide-y divide-line">
       {items.map((f) => (
-        <div key={f.label} className="flex items-start justify-between gap-4 py-1.5 text-xs">
-          <dt className={`shrink-0 ${MUTED}`}>{f.label}</dt>
-          <dd className="break-all text-right font-medium">
+        <div key={f.label} className="flex items-start justify-between gap-4 py-2 text-xs">
+          <dt className="shrink-0 text-muted">{f.label}</dt>
+          <dd className="min-w-0 break-words text-right font-medium">
             {f.href ? (
-              <Link href={f.href} className="text-cyan-400 hover:underline">
-                {f.value}
-              </Link>
+              <Link href={f.href} className="link">{f.value}</Link>
             ) : (
-              <span className={mono ? "font-mono font-semibold text-white" : "text-cyan-300"}>
-                {f.value}
-              </span>
+              <span className={mono ? "font-mono text-fg" : "text-fg"}>{f.value}</span>
             )}
           </dd>
         </div>
@@ -240,39 +166,22 @@ function KeyValue({ items, mono }: { items: Evidence[]; mono?: boolean }) {
 
 function EventDetail({ event }: { event: EventRow }) {
   const d = DETAIL[event.id];
-  const [copied, setCopied] = useState(false);
-
-  async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}/event-explorer?event=${event.id}`);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopied(false);
-    }
-  }
-
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-[#0A0F1A] p-4">
-      <h2 className="text-xs font-bold text-white">{event.event}</h2>
-      {d && <p className={`mt-1 text-[11px] leading-snug ${MUTED}`}>{d.observed}</p>}
+    <div className="well min-w-0 p-4">
+      <h3 className="text-sm font-semibold text-fg">{event.event}</h3>
+      {d && <p className="mt-1 text-xs leading-snug text-muted">{d.observed}</p>}
       <div className="mt-3">
         <KeyValue items={d?.ids ?? FALLBACK_IDS} mono />
       </div>
-      <h3 className="mb-1 mt-3 text-xs font-bold text-white">Correlated evidence</h3>
+      <h4 className="mb-1 mt-3 text-xs font-semibold text-fg">Correlated evidence</h4>
       {d ? (
         <KeyValue items={d.evidence} />
       ) : (
-        <p className={`py-2 text-[11px] ${MUTED}`}>No correlated evidence recorded for this event.</p>
+        <p className="py-2 text-xs text-muted">No correlated evidence recorded for this event.</p>
       )}
-      <div className="mt-4 flex gap-2 flex-wrap">
-        <Link
-          href="/incidents"
-          className={`h-8 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 inline-flex items-center text-xs font-medium text-white transition hover:bg-white/[0.08] ${FOCUS}`}
-        >
-          Open incident
-        </Link>
-        <OutlineButton onClick={copyLink}>{copied ? "✓ Copied" : "Copy link"}</OutlineButton>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <ButtonLink href="/incidents" size="sm">Open incident</ButtonLink>
+        <CopyButton size="sm" label="Copy link" text={`${typeof window === "undefined" ? "" : window.location.origin}/event-explorer?event=${event.id}`} />
       </div>
     </div>
   );
@@ -283,17 +192,17 @@ function EventDetail({ event }: { event: EventRow }) {
 function BuildProvenanceCard() {
   return (
     <Card title="Build provenance">
-      <dl className="divide-y divide-white/[0.05]">
+      <dl className="divide-y divide-line">
         {BUILD.map((r) => (
           <div key={r.label} className="flex items-start justify-between gap-4 py-2 text-xs">
-            <dt className={`shrink-0 ${MUTED}`}>{r.label}</dt>
-            <dd className="break-all text-right font-mono font-medium">
-              {r.href ? (
-                <Link href={r.href} className="text-cyan-400 hover:underline">
-                  {r.value}
-                </Link>
+            <dt className="shrink-0 text-muted">{r.label}</dt>
+            <dd className="min-w-0 break-all text-right font-mono">
+              {r.href?.startsWith("http") ? (
+                <a href={r.href} target="_blank" rel="noreferrer" className="link">{r.value}</a>
+              ) : r.href ? (
+                <Link href={r.href} className="link">{r.value}</Link>
               ) : (
-                <span className={r.accent ? "text-cyan-400 font-bold" : "text-white"}>{r.value}</span>
+                <span className="text-fg">{r.value}</span>
               )}
             </dd>
           </div>
@@ -304,81 +213,53 @@ function BuildProvenanceCard() {
 }
 
 function VerificationChecksCard() {
-  const [checks, setChecks] = useState<Check[]>(INITIAL_CHECKS);
-  const [verifying, setVerifying] = useState(false);
-
-  const handleReVerify = () => {
-    setVerifying(true);
-    setTimeout(() => {
-      setChecks([
-        { name: "Signature", detail: "Checked against signer public key", result: "Valid", tone: "green" },
-        { name: "Trusted signer", detail: "Signer certificate is in the trusted consortium set", result: "Valid", tone: "green" },
-        { name: "Record integrity", detail: "SHA-256 stored record matches cryptographic payload", result: "Valid", tone: "green" },
-        { name: "Ledger match", detail: "Hyperledger Fabric state verified and synced", result: "Valid", tone: "green" },
-      ]);
-      setVerifying(false);
-    }, 800);
-  };
-
   return (
     <Card
       title="Verification checks"
-      action={
-        <OutlineButton onClick={handleReVerify}>
-          {verifying ? "Checking..." : "Re-verify"}
-        </OutlineButton>
-      }
+      aside={<Button size="sm" disabled title="Verification service not connected">Re-verify</Button>}
     >
-      <ul className="divide-y divide-white/[0.05]">
-        {checks.map((c) => (
+      <ul className="divide-y divide-line">
+        {INITIAL_CHECKS.map((c) => (
           <li key={c.name} className="flex items-start justify-between gap-4 py-2.5 text-xs">
             <div>
-              <p className="font-semibold text-white">{c.name}</p>
-              <p className={`mt-0.5 text-[11px] ${MUTED}`}>{c.detail}</p>
+              <p className="font-medium text-fg">{c.name}</p>
+              <p className="mt-0.5 text-muted">{c.detail}</p>
             </div>
-            <span className={`shrink-0 font-semibold ${TONE_TEXT[c.tone]}`}>{c.result}</span>
+            <Badge tone={c.tone}>{c.result}</Badge>
           </li>
         ))}
       </ul>
-      <p className={`border-t pt-3 mt-2 text-[11px] ${DIVIDER} ${MUTED}`}>
+      <p className="mt-2 border-t border-line pt-3 text-xs text-muted">
         A cryptographic hash match alone is not proof. Each check runs against valid x509 SVID credentials and consortium policies.
+        Re-verification needs the verification service, which is not connected in this build.
       </p>
     </Card>
   );
 }
 
 function EventExplorerSection() {
-  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS);
   const [selected, setSelected] = useState("e1");
 
-  const q = query.trim().toLowerCase();
-  const rows = q
-    ? EVENTS.filter((e) => [e.workload, e.event, e.source, e.severity].some((v) => v.toLowerCase().includes(q)))
-    : EVENTS;
+  const rows = EVENTS.filter((e) => matchesFilters(e, filters));
   const current = EVENTS.find((e) => e.id === selected) ?? EVENTS[0];
 
   return (
-    <section aria-label="Event Explorer" className="space-y-4 rounded-xl border border-white/[0.07] bg-[#0D1117] p-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white">Correlated Audit Events</h2>
-        <span className="text-[11px] text-slate-400">Run {RUN} Context</span>
+    <section aria-label="Correlated audit events" className="card space-y-3 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-x-3">
+        <h2 className="text-base font-semibold text-fg">Correlated audit events</h2>
+        <span className="text-2xs text-muted">Run {RUN} context</span>
       </div>
-      <SearchBar value={query} onChange={setQuery} />
-      <FilterBar />
-      <div className="grid items-start gap-4 lg:grid-cols-[1fr_340px]">
-        <EventTable rows={rows} selected={selected} onSelect={setSelected} />
+      <SearchField
+        value={filters.query}
+        onChange={(query) => setFilters({ ...filters, query })}
+        placeholder="Search workload, event, source…"
+        label="Search events"
+      />
+      <FilterBar filters={filters} onChange={setFilters} />
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <EventTable rows={rows} selected={selected} onSelect={setSelected} onReset={() => setFilters(INITIAL_FILTERS)} />
         <EventDetail event={current} />
-      </div>
-    </section>
-  );
-}
-
-function ProvenanceSection() {
-  return (
-    <section aria-label="Provenance and verification" className="space-y-4">
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <BuildProvenanceCard />
-        <VerificationChecksCard />
       </div>
     </section>
   );
@@ -386,32 +267,25 @@ function ProvenanceSection() {
 
 /* --------------------------------- page --------------------------------- */
 
+function exportAttestation() {
+  const data = { dataSource: "sample", run: RUN, decisionId: DECISION_ID, build: BUILD, checks: INITIAL_CHECKS };
+  downloadFile(`provenance-run-${RUN.replace("#", "")}-sample.json`, "application/json", JSON.stringify(data, null, 2));
+}
+
 export default function ProvenancePage() {
   return (
-    <div className="space-y-5 p-4 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">Provenance & Verification</h1>
-          <p className={`mt-0.5 text-xs ${MUTED}`}>Run {RUN} · Decision {DECISION_ID} cryptographic attestation trail</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="rounded-full border border-amber-400/60 px-2.5 py-0.5 text-[10px] font-medium text-amber-300">
-            Sample data
-          </span>
-          <OutlineButton onClick={() => {
-            const data = { run: RUN, decisionId: DECISION_ID, build: BUILD, checks: INITIAL_CHECKS };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url; a.download = `provenance-run-${RUN.replace("#", "")}.json`; a.click();
-            URL.revokeObjectURL(url);
-          }}>
-            Export Attestation
-          </OutlineButton>
-        </div>
-      </div>
+    <div className="page">
+      <PageHeader
+        title="Provenance & Verification"
+        subtitle={<>Run {RUN} · decision <span className="font-mono">{DECISION_ID}</span> attestation trail</>}
+        badges={<SampleBadge />}
+        actions={<Button onClick={exportAttestation}>Export attestation</Button>}
+      />
 
-      <ProvenanceSection />
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <BuildProvenanceCard />
+        <VerificationChecksCard />
+      </div>
       <EventExplorerSection />
     </div>
   );

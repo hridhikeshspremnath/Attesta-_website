@@ -2,24 +2,13 @@
 
 // src/app/workload-identity/page.tsx
 // Attesta — Workload Identity (workload detail).
-// Dark fintech SaaS design. Tailwind only; no new dependencies.
+// Tailwind only; no new dependencies.
 
-import type { ReactNode } from "react";
 import Link from "next/link";
+import PageHeader from "@/src/components/ui/PageHeader";
+import { Badge, Card, SampleBadge, TONE_BG, TONE_TEXT, type Tone } from "@/src/components/ui/primitives";
 
 /* ------------------------- tokens + types ------------------------- */
-
-type Tone = "green" | "amber" | "red" | "white";
-
-const TONE_TEXT: Record<Tone, string> = {
-  green: "text-emerald-400",
-  amber: "text-amber-400",
-  red:   "text-red-400",
-  white: "text-white",
-};
-
-const MUTED   = "text-slate-400";
-const DIVIDER = "border-white/[0.06]";
 
 type Field    = { label: string; value: string; tone?: Tone; mono?: boolean };
 type Activity = { time: string; text: string; outcome: string; tone: Tone; href?: string };
@@ -31,13 +20,13 @@ const WORKLOAD = "build-runner-1842";
 const IDENTITY: Field[] = [
   { label: "SPIFFE ID",     value: "spiffe://[trust-domain]/[workload]", mono: true },
   { label: "Trust domain",  value: "[trust-domain]",                     mono: true },
-  { label: "Attestation",   value: "Verified",                           tone: "green" },
+  { label: "Attestation",   value: "Verified",                           tone: "ok" },
 ];
 
 const CREDENTIAL: Field[] = [
   { label: "SVID type", value: "X.509-SVID", mono: true },
   { label: "Issued",    value: "14:08:42",   mono: true },
-  { label: "Expires",   value: "14:15:42",   mono: true, tone: "amber" },
+  { label: "Expires",   value: "14:15:42",   mono: true, tone: "warn" },
 ];
 
 const LIFETIME_ELAPSED_PERCENT = 55;
@@ -50,38 +39,27 @@ const PIPELINE: Field[] = [
 ];
 
 const TRUST_HISTORY: Activity[] = [
-  { time: "14:08:40", text: "Trust gate evaluated",   outcome: "Review", tone: "amber", href: "/access-policies" },
-  { time: "Yesterday", text: "Previous run decision", outcome: "Issued", tone: "green", href: "/trust-ledger" },
+  { time: "14:08:40", text: "Trust gate evaluated",   outcome: "Review", tone: "warn", href: "/trust-decisions" },
+  { time: "Yesterday", text: "Previous run decision", outcome: "Issued", tone: "ok", href: "/trust-ledger" },
 ];
 
 const RUNTIME_ACTIVITY: Activity[] = [
-  { time: "14:02:11", text: "Read protected secret",     outcome: "Denied",  tone: "red",   href: "/runtime-monitoring" },
-  { time: "14:01:38", text: "Fetch dependency manifest", outcome: "Allowed", tone: "green", href: "/runtime-monitoring" },
+  { time: "14:02:11", text: "Read protected secret",     outcome: "Denied",  tone: "crit", href: "/runtime-monitoring" },
+  { time: "14:01:38", text: "Fetch dependency manifest", outcome: "Allowed", tone: "ok",   href: "/runtime-monitoring" },
 ];
 
 const AUDIT: Field[] = [
-  { label: "Signed decision", value: "Valid", tone: "green" },
+  { label: "Signed decision", value: "Valid", tone: "ok" },
   { label: "Ledger tx",       value: "[ID]",  mono: true },
 ];
-
-/* --------------------------- primitives --------------------------- */
-
-function Card({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-xl border border-white/[0.07] bg-[#0D1117] px-5 pb-4 pt-4">
-      <h2 className="mb-2 text-sm font-semibold text-white">{title}</h2>
-      {children}
-    </section>
-  );
-}
 
 /* ----------------------------- rows ----------------------------- */
 
 function FieldRow({ f }: { f: Field }) {
   return (
-    <div className={`flex items-start justify-between gap-4 py-2 text-xs border-t first:border-t-0 ${DIVIDER}`}>
-      <dt className={`shrink-0 ${MUTED}`}>{f.label}</dt>
-      <dd className={`break-all text-right ${f.mono ? "font-mono font-bold" : "font-medium"} ${TONE_TEXT[f.tone ?? "white"]}`}>
+    <div className="flex items-start justify-between gap-4 border-t border-line py-2 text-xs first:border-t-0">
+      <dt className="shrink-0 text-muted">{f.label}</dt>
+      <dd className={`min-w-0 break-all text-right ${f.mono ? "font-mono" : "font-medium"} ${f.tone ? TONE_TEXT[f.tone] : "text-fg"}`}>
         {f.value}
       </dd>
     </div>
@@ -89,30 +67,30 @@ function FieldRow({ f }: { f: Field }) {
 }
 
 function FieldList({ fields }: { fields: Field[] }) {
-  return <dl className="mt-1">{fields.map((f) => <FieldRow key={f.label} f={f} />)}</dl>;
+  return <dl>{fields.map((f) => <FieldRow key={f.label} f={f} />)}</dl>;
 }
 
 function ActivityRow({ a }: { a: Activity }) {
+  const row = "grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-3 py-2.5 text-xs";
   const content = (
-    <li className={`grid grid-cols-[72px_1fr_auto] items-center gap-3 border-t py-2.5 text-xs ${DIVIDER}`}>
-      <span className={`font-mono text-[11px] ${MUTED}`}>{a.time}</span>
-      <span className="font-medium text-white/90">{a.text}</span>
-      <span className={`font-semibold ${TONE_TEXT[a.tone]}`}>{a.outcome}</span>
-    </li>
+    <>
+      <span className="tabnum font-mono text-2xs text-muted">{a.time}</span>
+      <span className="text-fg">{a.text}</span>
+      <span className={`font-medium ${TONE_TEXT[a.tone]}`}>{a.outcome}</span>
+    </>
   );
 
-  if (a.href) {
-    return (
-      <Link href={a.href} className="block hover:bg-white/[0.025] rounded transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
-        {content}
-      </Link>
-    );
-  }
-  return content;
+  return (
+    <li className="border-t border-line first:border-t-0">
+      {a.href
+        ? <Link href={a.href} className={`${row} -mx-2 rounded-lg px-2 transition-colors hover:bg-raised/50`}>{content}</Link>
+        : <div className={row}>{content}</div>}
+    </li>
+  );
 }
 
 function ActivityList({ items }: { items: Activity[] }) {
-  return <ul className="mt-1">{items.map((a) => <ActivityRow key={a.time + a.text} a={a} />)}</ul>;
+  return <ul>{items.map((a) => <ActivityRow key={a.time + a.text} a={a} />)}</ul>;
 }
 
 /* ----------------------------- cards ----------------------------- */
@@ -122,11 +100,7 @@ function IdentityCard() {
 }
 
 function LifetimeBar({ percent }: { percent: number }) {
-  const color = percent > 75 
-    ? "bg-red-400 chart-bar-glow-red" 
-    : percent > 50 
-    ? "bg-amber-400 chart-bar-glow-amber" 
-    : "bg-emerald-400 chart-bar-glow-emerald";
+  const tone: Tone = percent > 75 ? "crit" : percent > 50 ? "warn" : "ok";
   return (
     <div
       role="progressbar"
@@ -134,9 +108,9 @@ function LifetimeBar({ percent }: { percent: number }) {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={percent}
-      className="my-2 h-2 rounded-full bg-white/[0.06] overflow-visible"
+      className="my-2 h-1.5 overflow-hidden rounded-full bg-raised/60"
     >
-      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${percent}%` }} />
+      <div className={`h-full rounded-full ${TONE_BG[tone]}`} style={{ width: `${percent}%` }} />
     </div>
   );
 }
@@ -147,7 +121,7 @@ function CredentialLifecycleCard() {
       <FieldList fields={CREDENTIAL} />
       <div className="mt-1 mb-1">
         <LifetimeBar percent={LIFETIME_ELAPSED_PERCENT} />
-        <p className="text-[10px] text-[#6B7280]">{LIFETIME_ELAPSED_PERCENT}% of SVID lifetime elapsed</p>
+        <p className="text-2xs text-muted">{LIFETIME_ELAPSED_PERCENT}% of SVID lifetime elapsed</p>
       </div>
       <FieldList fields={[REVOCATION]} />
     </Card>
@@ -171,12 +145,7 @@ function AuditEvidenceCard() {
     <Card title="Audit evidence">
       <FieldList fields={AUDIT} />
       <div className="mt-3">
-        <Link
-          href="/trust-ledger"
-          className="inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-        >
-          View in Trust Ledger →
-        </Link>
+        <Link href="/trust-ledger" className="link text-xs">View in Trust Ledger</Link>
       </div>
     </Card>
   );
@@ -186,18 +155,18 @@ function AuditEvidenceCard() {
 
 export default function WorkloadIdentityPage() {
   return (
-    <div className="space-y-4 p-4 sm:p-6">
-      {/* Page header */}
-      <div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-bold tracking-tight text-white">{WORKLOAD}</h1>
-          <div className="flex gap-2 flex-wrap">
-            <span className="rounded-full border border-emerald-400/60 px-2.5 py-0.5 text-[10px] font-medium text-emerald-400">Attested</span>
-            <span className="rounded-full border border-amber-400/60 px-2.5 py-0.5 text-[10px] font-medium text-amber-300">Trust: review</span>
-            <span className="rounded-full border border-amber-400 px-2.5 py-0.5 text-[10px] font-medium text-amber-300">Sample data</span>
-          </div>
-        </div>
-      </div>
+    <div className="page">
+      <PageHeader
+        title={<span className="font-mono">{WORKLOAD}</span>}
+        subtitle="SPIFFE identity, short-lived SVID and trust history for this workload"
+        badges={
+          <>
+            <SampleBadge />
+            <Badge tone="ok">Attested</Badge>
+            <Badge tone="warn">Trust: review</Badge>
+          </>
+        }
+      />
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <div className="space-y-4">

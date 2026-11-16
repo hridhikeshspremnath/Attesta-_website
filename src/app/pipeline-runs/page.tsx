@@ -2,27 +2,24 @@
 
 // src/app/pipeline-runs/page.tsx
 // Attesta — Pipeline Runs (run detail).
-// Dark fintech SaaS design. Tailwind only; no new dependencies.
+// Tailwind only; no new dependencies.
 
-import type { ReactNode } from "react";
-import Link from "next/link";
+import PageHeader from "@/src/components/ui/PageHeader";
+import { Badge, Card, SampleBadge, TONE_BG, TONE_TEXT, type Tone } from "@/src/components/ui/primitives";
 
 /* ------------------------- design tokens ------------------------- */
 
 type Status = "verified" | "flagged" | "review" | "waiting" | "skipped" | "clean" | "unscored";
 
-const STATUS: Record<Status, { label: string; text: string; bar: string; hex: string; bg: string }> = {
-  verified: { label: "Verified",   text: "text-emerald-400", bar: "bg-emerald-400", hex: "#34d399", bg: "bg-emerald-400/10" },
-  clean:    { label: "Clean",      text: "text-emerald-400", bar: "bg-emerald-400", hex: "#34d399", bg: "bg-emerald-400/10" },
-  flagged:  { label: "1 flagged",  text: "text-amber-400",   bar: "bg-amber-400",   hex: "#fbbf24", bg: "bg-amber-400/10" },
-  review:   { label: "Review",     text: "text-amber-400",   bar: "bg-amber-400",   hex: "#fbbf24", bg: "bg-amber-400/10" },
-  waiting:  { label: "Waiting",    text: "text-slate-400",   bar: "bg-slate-600",   hex: "#64748b", bg: "bg-slate-600/10" },
-  skipped:  { label: "Skipped",    text: "text-slate-400",   bar: "bg-slate-600",   hex: "#64748b", bg: "bg-slate-600/10" },
-  unscored: { label: "Not scored", text: "text-slate-400",   bar: "bg-slate-600",   hex: "#64748b", bg: "bg-slate-600/10" },
+const STATUS: Record<Status, { label: string; tone: Tone; color: string }> = {
+  verified: { label: "Verified",   tone: "ok",      color: "var(--success)" },
+  clean:    { label: "Clean",      tone: "ok",      color: "var(--success)" },
+  flagged:  { label: "1 flagged",  tone: "warn",    color: "var(--warning)" },
+  review:   { label: "Review",     tone: "warn",    color: "var(--warning)" },
+  waiting:  { label: "Waiting",    tone: "neutral", color: "var(--text-secondary)" },
+  skipped:  { label: "Skipped",    tone: "neutral", color: "var(--text-secondary)" },
+  unscored: { label: "Not scored", tone: "neutral", color: "var(--text-secondary)" },
 };
-
-const MUTED    = "text-slate-400";
-const DIVIDER  = "border-white/[0.06]";
 
 /* ----------------------------- data ----------------------------- */
 
@@ -78,55 +75,22 @@ const SUMMARY = [
 
 /* --------------------------- primitives --------------------------- */
 
-function Card({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
-  return (
-    <section className="rounded-xl border border-emerald-500/25 bg-[#0A0E14] shadow-[0_0_18px_-3px_rgba(16,185,129,0.22),inset_0_0_12px_-3px_rgba(16,185,129,0.06)] hover:border-emerald-500/40 hover:shadow-[0_0_25px_-1px_rgba(16,185,129,0.32)] transition-all">
-      <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
-        <h2 className="text-sm font-semibold text-white">{title}</h2>
-        {aside}
-      </div>
-      {children}
-    </section>
-  );
-}
-
 function StatusBadge({ status }: { status: Status }) {
   const s = STATUS[status];
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${s.text} ${s.bg} border-current/20`}>
-      {s.label}
-    </span>
-  );
+  return <Badge tone={s.tone}>{s.label}</Badge>;
 }
 
-function CheckIcon({ color, size = 14 }: { color: string; size?: number }) {
+// Passed, attention and not-yet-run states stay distinct without relying on colour.
+function StatusGlyph({ status, size = 14 }: { status: Status; size?: number }) {
+  const s = STATUS[status];
+  const passed = s.tone === "ok";
+  const attention = s.tone === "warn";
   return (
-    <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden>
-      <circle cx="8" cy="8" r="7" fill={color} />
-      <path d="M4.6 8.2l2.3 2.3 4.5-4.8" fill="none" stroke="#000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={`shrink-0 ${TONE_TEXT[s.tone]}`}>
+      <circle cx="8" cy="8" r="6.5" strokeDasharray={passed || attention ? undefined : "2 2.4"} />
+      {passed && <path d="M5 8.3l2.1 2.1 3.9-4.3" />}
+      {attention && <path d="M8 4.8v3.6M8 11h.01" />}
     </svg>
-  );
-}
-
-/* ----------------------------- page title ----------------------------- */
-
-function RunTitle() {
-  return (
-    <div className="space-y-1">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold tracking-tight text-white">
-          Run #{RUN.id} · <span className="font-mono text-[#9CA3AF]">[{RUN.repo}]</span>
-        </h1>
-        <div className="flex gap-2 flex-wrap">
-          <span className="rounded-full border border-amber-400/60 px-2.5 py-0.5 text-[10px] font-medium text-amber-300">
-            {RUN.gate}
-          </span>
-          <span className="rounded-full border border-amber-400 px-2.5 py-0.5 text-[10px] font-medium text-amber-300">
-            Sample data
-          </span>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -135,22 +99,21 @@ function RunTitle() {
 function TimelineRow({ row }: { row: (typeof TIMELINE)[number] }) {
   const s = STATUS[row.status];
   return (
-    <li className={`grid grid-cols-[120px_1fr_80px] items-center gap-3 border-t py-3 text-xs sm:grid-cols-[140px_60px_1fr_80px] ${DIVIDER}`}>
-      <span className="font-medium text-white">{row.step}</span>
-      <span className={`hidden font-mono text-[11px] sm:block ${MUTED}`}>{row.duration}</span>
-      <div className="relative h-1.5 rounded-full bg-white/[0.06]" role="img" aria-label={`${row.step}: ${s.label}`}>
+    <li className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 border-t border-line py-3 text-xs first:border-t-0 sm:grid-cols-[160px_64px_minmax(0,1fr)_96px]">
+      <span className="flex min-w-0 items-center gap-2 font-medium text-fg">
+        <StatusGlyph status={row.status} />
+        <span className="truncate">{row.step}</span>
+      </span>
+      <span className="tabnum hidden font-mono text-2xs text-muted sm:block">{row.duration}</span>
+      <div className="relative col-span-2 row-start-2 h-1.5 rounded-full bg-raised/60 sm:col-span-1 sm:row-start-auto" role="img" aria-label={`${row.step}: ${s.label}`}>
         {row.width > 0 && (
           <div
-            className={`absolute top-0 h-full rounded-full ${
-              row.status === "verified"
-                ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]"
-                : s.bar + " shadow-[0_0_10px_rgba(251,191,36,0.9)]"
-            }`}
+            className={`absolute top-0 h-full rounded-full ${TONE_BG[s.tone]}`}
             style={{ left: `${row.start}%`, width: `${row.width}%` }}
           />
         )}
       </div>
-      <StatusBadge status={row.status} />
+      <span className="justify-self-end sm:justify-self-start"><StatusBadge status={row.status} /></span>
     </li>
   );
 }
@@ -158,7 +121,7 @@ function TimelineRow({ row }: { row: (typeof TIMELINE)[number] }) {
 function ExecutionTimeline() {
   return (
     <Card title="Execution timeline">
-      <ol className="px-5 pb-2">
+      <ol>
         {TIMELINE.map((r) => <TimelineRow key={r.step} row={r} />)}
       </ol>
     </Card>
@@ -169,11 +132,11 @@ function ExecutionTimeline() {
 
 function RiskRow({ r }: { r: (typeof RISK)[number] }) {
   return (
-    <tr className={`border-t align-top ${DIVIDER}`}>
-      <td className="whitespace-nowrap px-5 py-3 font-mono text-[11px] font-bold text-white">{r.pkg}</td>
-      <td className="px-3 py-3 font-mono text-[11px] font-bold text-white">{r.registry}</td>
-      <td className={`px-3 py-3 text-xs font-medium ${STATUS[r.status].text}`}>{r.verdict}</td>
-      <td className={`px-3 py-3 pr-5 text-xs ${r.status === "unscored" ? MUTED : "text-slate-200"}`}>{r.evidence}</td>
+    <tr>
+      <td className="whitespace-nowrap font-mono text-fg">{r.pkg}</td>
+      <td className="font-mono text-muted">{r.registry}</td>
+      <td className={`whitespace-nowrap font-medium ${TONE_TEXT[STATUS[r.status].tone]}`}>{r.verdict}</td>
+      <td className={r.status === "unscored" ? "text-muted" : "text-fg"}>{r.evidence}</td>
     </tr>
   );
 }
@@ -181,23 +144,21 @@ function RiskRow({ r }: { r: (typeof RISK)[number] }) {
 function DependencyRisk() {
   return (
     <Card
+      flush
       title="Dependency risk · ML model"
-      aside={<span className={`font-mono text-[10px] ${MUTED}`}>model [{RISK_META.model}] · scored {RISK_META.scoredAt}</span>}
+      aside={<span className="font-mono text-2xs text-muted">model [{RISK_META.model}] · scored {RISK_META.scoredAt}</span>}
     >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[680px] text-left">
+        <table className="data-table min-w-[680px]">
           <thead>
-            <tr className={`text-xs ${MUTED} border-t ${DIVIDER}`}>
-              <th scope="col" className="px-5 py-2.5 font-normal">Package</th>
-              <th scope="col" className="px-3 py-2.5 font-normal">Registry</th>
-              <th scope="col" className="px-3 py-2.5 font-normal">Verdict</th>
-              <th scope="col" className="px-3 py-2.5 pr-5 font-normal">Evidence</th>
+            <tr>
+              {["Package", "Registry", "Verdict", "Evidence"].map((h) => <th key={h} scope="col">{h}</th>)}
             </tr>
           </thead>
           <tbody>{RISK.map((r) => <RiskRow key={r.pkg} r={r} />)}</tbody>
         </table>
       </div>
-      <p className={`border-t px-5 py-3 text-[11px] leading-relaxed ${DIVIDER} ${MUTED}`}>
+      <p className="border-t border-line px-5 py-3 text-xs leading-relaxed text-muted">
         A score with evidence, not a confirmed verdict. Flagged packages feed the trust gate as one piece of evidence and can open an incident.
       </p>
     </Card>
@@ -206,7 +167,7 @@ function DependencyRisk() {
 
 /* ----------------------------- pipeline graph ----------------------------- */
 
-const NODE_W = 156, NODE_H = 36, COL_GAP = 48, ROW_GAP = 16, PAD = 16;
+const NODE_W = 180, NODE_H = 36, COL_GAP = 48, ROW_GAP = 16, PAD = 16;
 
 function nodePos(n: GraphNode) {
   return { x: PAD + n.col * (NODE_W + COL_GAP), y: PAD + n.row * (NODE_H + ROW_GAP) };
@@ -216,38 +177,31 @@ function GraphEdge({ from, to }: { from: GraphNode; to: GraphNode }) {
   const a = nodePos(from), b = nodePos(to);
   const x1 = a.x + NODE_W, y1 = a.y + NODE_H / 2, x2 = b.x, y2 = b.y + NODE_H / 2;
   const mid = x1 + COL_GAP / 2;
-  return <path d={`M${x1} ${y1} H${mid} V${y2} H${x2}`} fill="none" stroke="rgba(16,185,129,0.5)" strokeWidth="1.5" filter="url(#glow-edge)" />;
+  return <path d={`M${x1} ${y1} H${mid} V${y2} H${x2}`} fill="none" stroke="var(--border)" strokeWidth="1.5" />;
 }
 
 function GraphNodeBox({ n }: { n: GraphNode }) {
   const { x, y } = nodePos(n);
   return (
     <g transform={`translate(${x} ${y})`}>
-      <rect width={NODE_W} height={NODE_H} rx="6" fill="#0A0E14" stroke="rgba(16,185,129,0.35)" filter="url(#glow-node)" />
-      <g transform={`translate(10 ${NODE_H / 2 - 7})`}>
-        <circle cx="7" cy="7" r="6" fill={STATUS[n.status].hex} filter="url(#glow-dot)" />
-      </g>
-      <text x="30" y={NODE_H / 2 + 4} fontSize="11" fill="#e6edf3">{n.label}</text>
-      <text x={NODE_W - 10} y={NODE_H / 2 + 4} fontSize="9" textAnchor="end" fill="#7d8590" fontFamily="ui-monospace, monospace">{n.meta}</text>
+      <rect width={NODE_W} height={NODE_H} rx="8" fill="var(--surface)" stroke="var(--border)" />
+      <circle cx="16" cy={NODE_H / 2} r="4" fill={STATUS[n.status].color} />
+      <text x="28" y={NODE_H / 2 + 4} fontSize="12" fill="var(--text-primary)">{n.label}</text>
+      <text x={NODE_W - 10} y={NODE_H / 2 + 4} fontSize="12" textAnchor="end" fill="var(--text-secondary)" fontFamily="var(--font-geist-mono), monospace">{n.meta}</text>
     </g>
   );
 }
 
-function JobSidebar() {
+function JobList() {
   return (
-    <aside className="p-4 text-[11px]">
-      <div className="rounded-md border-l-2 border-emerald-400 bg-emerald-500/10 px-3 py-1.5 font-semibold text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.25)]">Summary</div>
-      <div className={`mt-4 flex items-center justify-between px-1 ${MUTED}`}>
-        <span>All jobs</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-          <path d="M3 5h18l-7 8v6l-4-2v-4L3 5z" />
-        </svg>
-      </div>
+    <aside className="p-4">
+      <h3 className="px-1.5 text-2xs font-medium text-muted">Jobs</h3>
       <ul aria-label="Jobs" className="mt-2 space-y-0.5">
         {GRAPH_NODES.map((n) => (
-          <li key={n.id} className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 text-slate-200 hover:bg-white/[0.04] cursor-default">
-            <CheckIcon color={STATUS[n.status].hex} size={12} />
-            <span className="truncate">{n.label}</span>
+          <li key={n.id} className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 text-xs text-fg">
+            <StatusGlyph status={n.status} />
+            <span className="min-w-0 flex-1 truncate">{n.label}</span>
+            <span className="sr-only">{STATUS[n.status].label}</span>
           </li>
         ))}
       </ul>
@@ -257,11 +211,11 @@ function JobSidebar() {
 
 function SummaryStrip() {
   return (
-    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-emerald-500/20 bg-emerald-500/20 sm:grid-cols-4 shadow-[0_0_12px_rgba(16,185,129,0.12)]">
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
       {SUMMARY.map((s) => (
-        <div key={s.label} className="bg-[#0A0E14] px-3 py-2.5">
-          <dt className="text-[10px] text-slate-400">{s.label}</dt>
-          <dd className="mt-0.5 text-[11px] font-semibold text-white">{s.value}</dd>
+        <div key={s.label} className="min-w-0">
+          <dt className="text-2xs text-muted">{s.label}</dt>
+          <dd className="mt-0.5 truncate text-xs font-medium text-fg">{s.value}</dd>
         </div>
       ))}
     </dl>
@@ -275,36 +229,13 @@ function WorkflowGraph() {
   const w = PAD * 2 + cols * NODE_W + (cols - 1) * COL_GAP;
   const h = PAD * 2 + rows * NODE_H + (rows - 1) * ROW_GAP;
   return (
-    <div className="rounded-lg border border-emerald-500/25 bg-[#05080C] shadow-[0_0_18px_rgba(16,185,129,0.15)]">
-      <div className="px-4 pt-3 pb-2">
-        <p className="text-[11px] font-semibold text-white">attesta-ci.yml</p>
-        <p className="text-[10px] text-slate-400">on push</p>
+    <div className="well min-w-0">
+      <div className="px-4 pb-1 pt-3">
+        <p className="font-mono text-xs text-fg">attesta-ci.yml</p>
+        <p className="text-2xs text-muted">on push</p>
       </div>
       <div className="overflow-x-auto">
-        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Pipeline job dependency graph" className="block min-w-full">
-          <defs>
-            <filter id="glow-edge" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="1.5" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-            <filter id="glow-dot" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-            <filter id="glow-node" x="-10%" y="-10%" width="120%" height="120%">
-              <feGaussianBlur stdDeviation="1" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
+        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Pipeline job dependency graph" className="block">
           {GRAPH_EDGES.map(([f, t]) => <GraphEdge key={f + t} from={byId[f]} to={byId[t]} />)}
           {GRAPH_NODES.map((n) => <GraphNodeBox key={n.id} n={n} />)}
         </svg>
@@ -315,27 +246,17 @@ function WorkflowGraph() {
 
 function PipelineGraph() {
   return (
-    <section className="overflow-hidden rounded-xl border border-emerald-500/25 bg-[#0A0E14] shadow-[0_0_20px_-2px_rgba(16,185,129,0.22)]">
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.07] px-5 py-3 text-[11px] text-slate-400">
-        <Link href="/pipeline-runs" className="hover:text-slate-200 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
-          ← Pipeline Runs
-        </Link>
-      </div>
-      <div className="flex items-center gap-2.5 px-5 py-3 text-xs text-white">
-        <CheckIcon color={STATUS.review.hex} />
-        <span className="font-semibold">Run #{RUN.id}</span>
-        <span className={MUTED}>· dependency review</span>
-      </div>
-      <div className="grid border-t border-white/[0.07] lg:grid-cols-[220px_1fr]">
-        <div className="border-b border-white/[0.07] lg:border-b-0 lg:border-r">
-          <JobSidebar />
+    <Card flush title="Workflow jobs" className="overflow-hidden">
+      <div className="grid border-t border-line lg:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="border-b border-line lg:border-b-0 lg:border-r">
+          <JobList />
         </div>
-        <div className="min-w-0 space-y-3 p-4">
+        <div className="min-w-0 space-y-4 p-4">
           <SummaryStrip />
           <WorkflowGraph />
         </div>
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -343,8 +264,17 @@ function PipelineGraph() {
 
 export default function PipelineRunsPage() {
   return (
-    <div className="space-y-4 p-4 sm:p-6">
-      <RunTitle />
+    <div className="page">
+      <PageHeader
+        title={<>Run #{RUN.id} <span className="font-mono text-lg font-normal text-muted">[{RUN.repo}]</span></>}
+        subtitle="Stage timeline, dependency risk and job graph for this GitHub Actions run"
+        badges={
+          <>
+            <SampleBadge />
+            <Badge tone="warn">{RUN.gate}</Badge>
+          </>
+        }
+      />
       <ExecutionTimeline />
       <DependencyRisk />
       <PipelineGraph />

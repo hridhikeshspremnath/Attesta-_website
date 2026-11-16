@@ -1,3 +1,6 @@
-// src/app/trust-decisions/page.tsx — Aliases /access-policies so /trust-decisions route works seamlessly
-export { default } from "../access-policies/page";
+// src/app/trust-decisions/page.tsx — Decision log view of the shared access data.
+import AccessView from "@/src/components/access/AccessView";
 
+export default function TrustDecisionsPage() {
+  return <AccessView view="decisions" />;
+}
