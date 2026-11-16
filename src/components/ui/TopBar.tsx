@@ -367,7 +367,7 @@ export default function TopBar({ crumbs, actions, onMenuOpen }: TopBarProps) {
   const degraded = SECURITY_SERVICES.some((s) => !s.ok);
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-line bg-canvas px-4 sm:px-6">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-line bg-canvas/60 px-4 backdrop-blur-xl sm:px-6">
       {/* Left: mobile menu + breadcrumbs */}
       <div className="flex min-w-0 items-center gap-2">
         <MobileMenuButton onClick={onMenuOpen} />

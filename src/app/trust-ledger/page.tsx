@@ -4,26 +4,16 @@
 // Attesta — Trust Ledger. Live data from the gateway via /api/ledger.
 // Tailwind only; no new dependencies.
 
-import { useEffect, useState } from "react";
 import PageHeader from "@/src/components/ui/PageHeader";
-import { Badge, Button, Card, EmptyState, type Tone } from "@/src/components/ui/primitives";
+import { Badge, Button, Card, EmptyState } from "@/src/components/ui/primitives";
 import { downloadFile, toCsv } from "@/src/lib/download";
-import type { Checkpoint, Decision, LedgerEntry } from "@/src/types";
+import { DECISION_TONE, effectiveDecision, shortHash, subject, useLedger, utc } from "@/src/lib/ledger";
+import type { Checkpoint, LedgerEntry } from "@/src/types";
 
-/* ------------------------- tokens + types ------------------------- */
-
-type Ledger = { records: LedgerEntry[]; checkpoint: Checkpoint | null; truncated: boolean };
-type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: Ledger };
-
-const DECISION_TONE: Record<Decision, Tone> = { ALLOW: "ok", WARN: "warn", REVIEW: "warn", BLOCK: "crit" };
 const COLUMNS = ["Transaction", "Time (UTC)", "Subject", "Run", "Risk", "Decision"];
 
-const utc = (seconds: number) => new Date(seconds * 1000).toISOString().replace("T", " ").slice(0, 19);
-const short = (hash: string) => `${hash.slice(0, 12)}…`;
-const subject = (e: LedgerEntry) => `${e.record.ecosystem}/${e.record.package}@${e.record.version}`;
 // Fabric entries are identified by transaction id; the SQLite dev backend only has a record hash.
 const txRef = (e: LedgerEntry) => e.tx_id ?? e.record_hash;
-const decision = (e: LedgerEntry) => e.effective_decision ?? e.record.decision;
 
 /* ----------------------------- ledger ----------------------------- */
 
@@ -39,14 +29,14 @@ function LedgerTable({ records }: { records: LedgerEntry[] }) {
         <tbody>
           {records.map((e) => (
             <tr key={e.record.record_id}>
-              <td className="font-mono" title={txRef(e)}>{short(txRef(e))}</td>
+              <td className="font-mono" title={txRef(e)}>{shortHash(txRef(e))}</td>
               <td className="tabnum font-mono text-muted">{utc(e.timestamp)}</td>
               <td className="font-mono text-fg">{subject(e)}</td>
               <td className="font-mono text-muted">{e.record.run_id}</td>
               <td className="tabnum font-mono text-fg">{e.record.risk_score}</td>
               <td>
-                <Badge tone={DECISION_TONE[decision(e)]}>{decision(e)}</Badge>
-                {decision(e) !== e.record.decision && <span className="ml-2 text-2xs text-muted">overrides {e.record.decision}</span>}
+                <Badge tone={DECISION_TONE[effectiveDecision(e)]}>{effectiveDecision(e)}</Badge>
+                {effectiveDecision(e) !== e.record.decision && <span className="ml-2 text-2xs text-muted">overrides {e.record.decision}</span>}
               </td>
             </tr>
           ))}
@@ -63,13 +53,13 @@ function checkpointFields(c: Checkpoint | null): { label: string; value: string;
       { label: "Ledger", value: "Hyperledger Fabric" },
       { label: "Channel", value: c.channel },
       { label: "Block height", value: String(c.height) },
-      { label: "Tip block hash", value: short(c.current_block_hash), title: c.current_block_hash },
+      { label: "Tip block hash", value: shortHash(c.current_block_hash), title: c.current_block_hash },
     ];
   }
   return [
     { label: "Ledger", value: "Merkle log (dev)" },
     { label: "Records", value: String(c.record_count) },
-    { label: "Merkle root", value: short(c.merkle_root), title: c.merkle_root },
+    { label: "Merkle root", value: shortHash(c.merkle_root), title: c.merkle_root },
     { label: "Signed at (UTC)", value: utc(c.timestamp) },
   ];
 }
@@ -102,27 +92,12 @@ function LedgerNote() {
 /* --------------------------------- page --------------------------------- */
 
 function exportLedger(records: LedgerEntry[]) {
-  const rows = records.map((e) => [txRef(e), utc(e.timestamp), subject(e), e.record.run_id, e.record.risk_score, decision(e)]);
+  const rows = records.map((e) => [txRef(e), utc(e.timestamp), subject(e), e.record.run_id, e.record.risk_score, effectiveDecision(e)]);
   downloadFile("trust-ledger.csv", "text/csv", toCsv(COLUMNS, rows));
 }
 
 export default function TrustLedgerPage() {
-  const [state, setState] = useState<State>({ status: "loading" });
-  const [reloads, setReloads] = useState(0);
-  const load = () => setReloads((n) => n + 1);
-
-  useEffect(() => {
-    let live = true;
-    fetch("/api/ledger", { cache: "no-store" })
-      .then(async (res): Promise<State> => {
-        const body = await res.json();
-        return res.ok ? { status: "ready", data: body } : { status: "error", message: body.error ?? `HTTP ${res.status}` };
-      })
-      .catch((): State => ({ status: "error", message: "Dashboard server is unreachable" }))
-      .then((next) => { if (live) setState(next); });
-    return () => { live = false; };
-  }, [reloads]);
-
+  const { state, reload } = useLedger();
   const records = state.status === "ready" ? state.data.records : [];
   const truncated = state.status === "ready" && state.data.truncated;
 
@@ -133,7 +108,7 @@ export default function TrustLedgerPage() {
         subtitle="Signed trust decisions recorded by the Attesta gateway"
         actions={
           <>
-            <Button onClick={load}>Refresh</Button>
+            <Button onClick={reload}>Refresh</Button>
             <Button onClick={() => exportLedger(records)} disabled={records.length === 0}>Export ledger</Button>
           </>
         }
@@ -143,7 +118,7 @@ export default function TrustLedgerPage() {
         <Card flush title="Ledger records" aside={<span className="text-2xs text-muted">{truncated ? `Newest first, first ${records.length} loaded` : "Newest first"}</span>}>
           {state.status === "loading" && <EmptyState title="Loading ledger…" />}
           {state.status === "error" && (
-            <EmptyState title="Could not load the ledger" action={<Button onClick={load}>Retry</Button>}>{state.message}</EmptyState>
+            <EmptyState title="Could not load the ledger" action={<Button onClick={reload}>Retry</Button>}>{state.message}</EmptyState>
           )}
           {state.status === "ready" && (records.length ? <LedgerTable records={records} /> : <EmptyState title="No records yet">The ledger is empty until the scoring service submits a signed record.</EmptyState>)}
         </Card>

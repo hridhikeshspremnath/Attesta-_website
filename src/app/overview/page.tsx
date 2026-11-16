@@ -1,58 +1,82 @@
 "use client";
 
 // src/app/overview/page.tsx
-// Attesta — Overview dashboard: security posture at a glance.
+// Attesta — Overview dashboard: the trust ledger at a glance. Live data via /api/ledger.
 // Self-contained: Tailwind utility classes only, no new dependencies.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/src/components/ui/PageHeader";
-import { Badge, Button, Card, EmptyState, SampleBadge, SearchField, StatusDot, TONE_TEXT, type Tone } from "@/src/components/ui/primitives";
+import { Badge, Button, Card, EmptyState, SearchField, StatusDot, TONE_TEXT, type Tone } from "@/src/components/ui/primitives";
 import { downloadFile } from "@/src/lib/download";
+import { DECISION_TONE, effectiveDecision, subject, useLedger, utc, type LedgerState } from "@/src/lib/ledger";
+import type { Decision, LedgerEntry } from "@/src/types";
 
-/* ----------------------------- data ----------------------------- */
+/* ----------------------------- derived data ----------------------------- */
 
-const STATS: { label: string; value: number; note: string; tone: Tone; href: string }[] = [
-  { label: "Active runs",          value: 12, note: "3 awaiting trust gate", tone: "info", href: "/pipeline-runs" },
-  { label: "Access denials",       value: 7,  note: "2 need review",         tone: "crit", href: "/trust-decisions" },
-  { label: "Open incidents",       value: 1,  note: "containment pending",   tone: "warn", href: "/incidents" },
-  { label: "SVIDs expiring < 15m", value: 4,  note: "renewal queued",        tone: "warn", href: "/workload-identity" },
-];
+type Stat = { label: string; value: string; note: string; tone: Tone };
+type Bar = { label: string; value: number };
+type Service = { name: string; status: string; tone: Tone };
 
-const DENIED_24H = [
-  { label: "00–04", value: 22 },
-  { label: "04–08", value: 34 },
-  { label: "08–12", value: 14 },
-  { label: "12–16", value: 100 },
-  { label: "16–20", value: 40 },
-  { label: "20–24", value: 28 },
-];
+const DAY = 86400;
+const RECENT = 6;
 
-const SERVICES: { name: string; status: string; tone: Tone }[] = [
-  { name: "Webhook ingestion", status: "Live",          tone: "ok" },
-  { name: "Policy engine",     status: "Live",          tone: "ok" },
-  { name: "Runtime agent",     status: "Stale · 2 min", tone: "warn" },
-  { name: "Ledger",            status: "Live",          tone: "ok" },
-  { name: "SPIRE attestation", status: "Live",          tone: "ok" },
-];
+const count = (records: LedgerEntry[], d: Decision) => records.filter((r) => effectiveDecision(r) === d).length;
 
-const EVENTS: {
-  time: string; workload: string; event: string;
-  outcome: string; tone: Tone; confidence: number;
-  href: string;
-}[] = [
-  { time: "14:02:11", workload: "build-runner-1842",  event: "Read protected secret",           outcome: "Denied",   tone: "crit", confidence: 87, href: "/event-explorer?event=e1" },
-  { time: "14:01:48", workload: "deploy-runner-1841", event: "SVID issued · trust gate passed", outcome: "Allowed",  tone: "ok",   confidence: 94, href: "/event-explorer?event=e4" },
-  { time: "14:00:38", workload: "test-runner-1840",   event: "Attestation failed",              outcome: "Rejected", tone: "crit", confidence: 81, href: "/event-explorer?event=e5" },
-  { time: "13:58:02", workload: "build-runner-1839",  event: "Trust gate: additional review",   outcome: "Review",   tone: "warn", confidence: 76, href: "/event-explorer?event=e6" },
-  { time: "13:55:19", workload: "build-runner-1838",  event: "Decision signed · ledger tx recorded", outcome: "Verified", tone: "ok", confidence: 68, href: "/event-explorer?event=e7" },
-];
+function stats(state: LedgerState): Stat[] {
+  const ready = state.status === "ready";
+  const records = ready ? state.data.records : [];
+  const cp = ready ? state.data.checkpoint : null;
+  const n = (v: number) => (ready ? String(v) : "–");
+  return [
+    { label: "Records on ledger", value: n(records.length), note: cp?.kind === "fabric" ? `Fabric block height ${cp.height}` : "signed trust decisions", tone: "info" },
+    { label: "Blocked", value: n(count(records, "BLOCK")), note: "refused by the deploy gate", tone: "crit" },
+    { label: "Awaiting review", value: n(count(records, "REVIEW")), note: "needs an auditor decision", tone: "warn" },
+    { label: "Allowed", value: n(count(records, "ALLOW")), note: "may deploy", tone: "ok" },
+  ];
+}
+
+/** Records per UTC day for the 7 days ending at `nowMs`. */
+function perDay(records: LedgerEntry[], nowMs: number): Bar[] {
+  const today = Math.floor(nowMs / 1000 / DAY);
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = today - 6 + i;
+    return {
+      label: new Date(day * DAY * 1000).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" }),
+      value: records.filter((r) => Math.floor(r.timestamp / DAY) === day).length,
+    };
+  });
+}
+
+function ago(seconds: number): string {
+  if (seconds < 90) return "just now";
+  if (seconds < 5400) return `${Math.round(seconds / 60)} min ago`;
+  if (seconds < 2 * DAY) return `${Math.round(seconds / 3600)} h ago`;
+  return `${Math.round(seconds / DAY)} d ago`;
+}
+
+function services(state: LedgerState): Service[] {
+  if (state.status === "loading") return [{ name: "Gateway", status: "Checking…", tone: "info" }];
+  if (state.status === "error") return [{ name: "Gateway", status: "Unreachable", tone: "crit" }];
+  const { checkpoint: cp, records } = state.data;
+  const ledger: Service = !cp
+    ? { name: "Ledger", status: "Empty", tone: "warn" }
+    : cp.kind === "fabric"
+      ? { name: `Ledger · Fabric ${cp.channel}`, status: `Block ${cp.height}`, tone: "ok" }
+      : { name: "Ledger · Merkle log (dev)", status: `${cp.record_count} records`, tone: "ok" };
+  const newest = records[0];
+  return [
+    { name: "Gateway (SPIFFE mTLS)", status: "Live", tone: "ok" },
+    ledger,
+    { name: "Latest record", status: newest ? ago(state.loadedAt / 1000 - newest.timestamp) : "None yet", tone: newest ? "info" : "warn" },
+  ];
+}
 
 /* ----------------------- stat cards ----------------------- */
 
-function StatCard({ label, value, note, tone, href }: (typeof STATS)[number]) {
+function StatCard({ label, value, note, tone }: Stat) {
   return (
-    <Link href={href} className="card card-link block p-4 sm:p-5">
+    <Link href="/trust-ledger" className="card card-link block p-4 sm:p-5">
       <p className="flex items-center gap-2 text-xs text-muted">
         <StatusDot tone={tone} />
         <span className="min-w-0">{label}</span>
@@ -63,30 +87,22 @@ function StatCard({ label, value, note, tone, href }: (typeof STATS)[number]) {
   );
 }
 
-function StatsRow() {
-  return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      {STATS.map((s) => <StatCard key={s.label} {...s} />)}
-    </div>
-  );
-}
+/* ----------------------- decisions chart ----------------------- */
 
-/* ----------------------- denied chart ----------------------- */
-
-function DeniedRequestsChart() {
-  const max = Math.max(...DENIED_24H.map((d) => d.value));
-  const total = DENIED_24H.reduce((a, b) => a + b.value, 0);
+function DecisionsChart({ bars }: { bars: Bar[] }) {
+  const max = Math.max(1, ...bars.map((d) => d.value));
+  const total = bars.reduce((a, b) => a + b.value, 0);
   return (
-    <Card title="Denied requests" aside={<span className="tabnum text-2xs text-muted">{total} in last 24 h</span>}>
+    <Card title="Decisions recorded" aside={<span className="tabnum text-2xs text-muted">{total} in last 7 days</span>}>
       <div className="flex h-40 items-stretch gap-2 border-b border-line pt-6 sm:gap-3">
-        {DENIED_24H.map((d) => {
-          const peak = d.value === max;
+        {bars.map((d) => {
+          const peak = d.value === max && d.value > 0;
           const pct = (d.value / max) * 100;
           return (
             <div
               key={d.label}
               tabIndex={0}
-              aria-label={`${d.label} UTC: ${d.value} denied requests`}
+              aria-label={`${d.label}: ${d.value} decisions recorded`}
               className="group relative flex flex-1 items-end rounded-t focus-visible:outline-offset-0"
             >
               <div
@@ -105,21 +121,20 @@ function DeniedRequestsChart() {
         })}
       </div>
       <div className="mt-1.5 flex gap-2 sm:gap-3" aria-hidden>
-        {DENIED_24H.map((d) => <span key={d.label} className="tabnum flex-1 text-center text-2xs text-muted">{d.label}</span>)}
+        {bars.map((d) => <span key={d.label} className="tabnum flex-1 text-center text-2xs text-muted">{d.label}</span>)}
       </div>
-      <p className="mt-2 text-2xs text-muted">Requests per 4-hour window, UTC</p>
+      <p className="mt-2 text-2xs text-muted">Ledger records per day, UTC</p>
     </Card>
   );
 }
 
 /* ----------------------- service health ----------------------- */
 
-function ServiceHealth() {
-  const degraded = SERVICES.filter((s) => s.tone !== "ok").length;
+function ServiceHealth({ items }: { items: Service[] }) {
   return (
-    <Card title="Service health" aside={<span className="text-2xs text-muted">{SERVICES.length - degraded} of {SERVICES.length} live</span>}>
+    <Card title="Service health" aside={<span className="text-2xs text-muted">measured through the gateway</span>}>
       <ul className="divide-y divide-line">
-        {SERVICES.map((s) => (
+        {items.map((s) => (
           <li key={s.name} className="flex items-center justify-between gap-3 py-2.5 first:pt-1 last:pb-0">
             <span className="flex min-w-0 items-center gap-2.5">
               <StatusDot tone={s.tone} />
@@ -133,75 +148,69 @@ function ServiceHealth() {
   );
 }
 
-/* ----------------------- recent event feed ----------------------- */
+/* ----------------------- recent decisions ----------------------- */
 
-function ConfidenceBar({ value }: { value: number }) {
+function RiskBar({ permille }: { permille: number }) {
   return (
-    <div className="h-1 w-16 overflow-hidden rounded-full bg-raised" aria-hidden>
-      <div className="h-full rounded-full bg-accent" style={{ width: `${value}%` }} />
-    </div>
+    <span className="flex items-center gap-2.5">
+      <span className="h-1 w-16 overflow-hidden rounded-full bg-raised" aria-hidden>
+        <span className="block h-full rounded-full bg-accent" style={{ width: `${permille / 10}%` }} />
+      </span>
+      <span className="tabnum text-muted">{permille}</span>
+    </span>
   );
 }
 
-function EventRow({ e }: { e: (typeof EVENTS)[number] }) {
-  return (
-    <tr>
-      <td className="tabnum whitespace-nowrap font-mono text-muted">{e.time}</td>
-      <td className="whitespace-nowrap font-mono text-fg">{e.workload}</td>
-      <td className="text-fg">{e.event}</td>
-      <td className="whitespace-nowrap"><Badge tone={e.tone}>{e.outcome}</Badge></td>
-      <td>
-        <span className="flex items-center gap-2.5">
-          <ConfidenceBar value={e.confidence} />
-          <span className="tabnum text-muted">{e.confidence}%</span>
-        </span>
-      </td>
-      <td className="text-right">
-        <Link href={e.href} aria-label={`View event details for ${e.workload}`} className="link whitespace-nowrap">Details</Link>
-      </td>
-    </tr>
-  );
-}
-
-function RecentEvents() {
+function RecentDecisions({ state, onRetry }: { state: LedgerState; onRetry: () => void }) {
   const [query, setQuery] = useState("");
+  const records = useMemo(() => (state.status === "ready" ? state.data.records : []), [state]);
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? EVENTS.filter((e) => `${e.workload} ${e.event} ${e.outcome}`.toLowerCase().includes(q)) : EVENTS;
-  }, [query]);
+    const matched = q ? records.filter((e) => `${subject(e)} ${e.record.run_id} ${effectiveDecision(e)}`.toLowerCase().includes(q)) : records;
+    return matched.slice(0, RECENT);
+  }, [query, records]);
 
   return (
     <Card
       flush
-      title="Recent events"
+      title="Recent decisions"
       aside={
         <div className="flex w-full items-center gap-3 sm:w-auto">
-          <SearchField
-            value={query}
-            onChange={setQuery}
-            placeholder="Filter by workload or event…"
-            label="Filter recent events"
-            className="flex-1 sm:w-64"
-          />
-          <Link href="/event-explorer" className="link shrink-0 text-xs">View all</Link>
+          <SearchField value={query} onChange={setQuery} placeholder="Filter by package, run or decision…" label="Filter recent decisions" className="flex-1 sm:w-64" />
+          <Link href="/trust-ledger" className="link shrink-0 text-xs">View all</Link>
         </div>
       }
     >
-      <div className="overflow-x-auto">
-        <table className="data-table min-w-[780px]">
-          <thead>
-            <tr>
-              {["Time", "Workload", "Event", "Outcome", "Confidence"].map((h) => <th key={h} scope="col">{h}</th>)}
-              <th scope="col" aria-label="Details" />
-            </tr>
-          </thead>
-          <tbody>{rows.map((e) => <EventRow key={e.time} e={e} />)}</tbody>
-        </table>
-      </div>
-      {rows.length === 0 && (
-        <EmptyState title="No events match this filter" action={<Button size="sm" onClick={() => setQuery("")}>Clear filter</Button>}>
-          Five recent events are loaded. Try a workload name such as build-runner.
-        </EmptyState>
+      {state.status === "loading" && <EmptyState title="Loading ledger…" />}
+      {state.status === "error" && (
+        <EmptyState title="Could not load the ledger" action={<Button size="sm" onClick={onRetry}>Retry</Button>}>{state.message}</EmptyState>
+      )}
+      {state.status === "ready" && rows.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="data-table min-w-[720px]">
+            <thead>
+              <tr>
+                {["Time (UTC)", "Package", "Run", "Decision", "Risk (0–1000)"].map((h) => <th key={h} scope="col">{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((e) => (
+                <tr key={e.record.record_id}>
+                  <td className="tabnum whitespace-nowrap font-mono text-muted">{utc(e.timestamp)}</td>
+                  <td className="whitespace-nowrap font-mono text-fg">{subject(e)}</td>
+                  <td className="font-mono text-muted">{e.record.run_id}</td>
+                  <td className="whitespace-nowrap"><Badge tone={DECISION_TONE[effectiveDecision(e)]}>{effectiveDecision(e)}</Badge></td>
+                  <td><RiskBar permille={e.record.risk_score} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {state.status === "ready" && rows.length === 0 && (
+        records.length
+          ? <EmptyState title="No decisions match this filter" action={<Button size="sm" onClick={() => setQuery("")}>Clear filter</Button>} />
+          : <EmptyState title="No records yet">The ledger is empty until the scoring service submits a signed record.</EmptyState>
       )}
     </Card>
   );
@@ -210,36 +219,36 @@ function RecentEvents() {
 /* ----------------------------- page ----------------------------- */
 
 export default function OverviewPage() {
-  const degraded = SERVICES.filter((s) => s.tone !== "ok").length;
+  const { state, reload } = useLedger();
+  const ready = state.status === "ready";
+  const bars = useMemo(() => (state.status === "ready" ? perDay(state.data.records, state.loadedAt) : []), [state]);
   const exportSnapshot = () =>
-    downloadFile(
-      "attesta-overview-sample.json",
-      "application/json",
-      JSON.stringify({ dataSource: "sample", stats: STATS, deniedRequests24h: DENIED_24H, services: SERVICES, events: EVENTS }, null, 2),
-    );
+    ready && downloadFile("attesta-overview.json", "application/json", JSON.stringify({ dataSource: "trust ledger", ...state.data }, null, 2));
 
   return (
     <div className="page">
       <PageHeader
         title="Security overview"
-        subtitle="Thu, 26 Feb 2026 · last 24 hours"
-        badges={
+        subtitle="Live from the trust ledger · last 7 days"
+        badges={state.status === "error" ? <Badge tone="crit">Ledger unreachable</Badge> : undefined}
+        actions={
           <>
-            <SampleBadge />
-            {degraded > 0 && <Badge tone="warn">{degraded} service degraded</Badge>}
+            <Button onClick={reload}>Refresh</Button>
+            <Button onClick={exportSnapshot} disabled={!ready}>Export JSON</Button>
           </>
         }
-        actions={<Button onClick={exportSnapshot}>Export JSON</Button>}
       />
 
-      <StatsRow />
-
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <DeniedRequestsChart />
-        <ServiceHealth />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {stats(state).map((s) => <StatCard key={s.label} {...s} />)}
       </div>
 
-      <RecentEvents />
+      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+        <DecisionsChart bars={bars} />
+        <ServiceHealth items={services(state)} />
+      </div>
+
+      <RecentDecisions state={state} onRetry={reload} />
     </div>
   );
 }

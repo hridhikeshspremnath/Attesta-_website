@@ -5,6 +5,7 @@
 // Mobile-responsive: sidebar collapses to hamburger drawer on small screens.
 
 import Sidebar from "@/src/components/layout/Sidebar";
+import WaveBackground from "@/src/components/layout/WaveBackground";
 import TopBar, { type Crumb } from "@/src/components/ui/TopBar";
 import { findRoute } from "@/src/lib/navigation";
 import { useState, type ReactNode } from "react";
@@ -29,7 +30,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const crumbs = useBreadcrumbs();
 
   return (
-    <div className="flex min-h-screen bg-canvas text-fg">
+    <div className="flex min-h-screen text-fg">
+      <WaveBackground />
       <Sidebar
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}

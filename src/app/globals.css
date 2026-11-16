@@ -1,37 +1,39 @@
 @import "tailwindcss";
 
 /* ══════════════════════════════════════════════════════════════════════
-   Attesta Design System — Carbon + Sage
-   One dark theme. Colour carries meaning: sage for interaction and verified
-   state, semantic hues for security state, neutrals for everything else.
+   Attesta Design System — Obsidian + Indigo
+   One dark theme. Near-black canvas with slow indigo waves behind glass
+   panels; white for text, indigo for interaction, semantic hues (green,
+   amber, red, blue) for security state.
    ══════════════════════════════════════════════════════════════════════ */
 
 :root {
   /* ── Surfaces ── */
-  --app-bg:           #090B09;   /* Carbon page canvas */
-  --sidebar-bg:       #111612;   /* navigation rail */
-  --surface:          #171D19;   /* cards and panels */
-  --surface-elevated: #29382F;   /* nested elements, hover, popovers */
+  --app-bg:           #050608;                    /* Obsidian page canvas */
+  --sidebar-bg:       rgba(9, 10, 14, 0.72);      /* navigation rail (glass) */
+  --surface:          #111318;                    /* solid panels: popovers, drawers, buttons */
+  --surface-elevated: #232732;                    /* nested elements, hover */
+  --glass:            rgba(19, 21, 28, 0.62);     /* cards: the waves show through */
 
   /* ── Interaction ── */
-  --accent:           #8FAF91;   /* Sage */
-  --accent-light:     #C5D6C2;
+  --accent:           #8C9EFF;   /* Indigo */
+  --accent-light:     #C7D0FF;
 
   /* ── Typography ── */
-  --text-primary:     #E8EDE7;
-  --text-secondary:   #929D91;
+  --text-primary:     #F2F4F8;
+  --text-secondary:   #8B90A0;
 
   /* ── Structure ── */
-  --border:           #303A31;
+  --border:           rgba(255, 255, 255, 0.10);
 
   /* ── Security state ── */
-  --success:          var(--accent);
-  --warning:          #D9A477;
-  --critical:         #C97979;
-  --info:             #8BAFC0;
+  --success:          #34D399;
+  --warning:          #F5A524;
+  --critical:         #F0566A;
+  --info:             #5B8CFF;
 
   /* ── Shape + spacing (4 px base) ── */
-  --radius-card:      12px;
+  --radius-card:      16px;
   --radius-control:   8px;
   --radius-badge:     6px;
   --control-h:        36px;
@@ -78,11 +80,16 @@
 html {
   color-scheme: dark;
   height: 100%;
-  background-color: var(--app-bg);
+  /* Canvas plus two still glows; the moving waves sit above this (see .waves). */
+  background:
+    radial-gradient(1100px 620px at 88% -12%, rgba(99, 112, 255, 0.20), transparent 62%),
+    radial-gradient(900px 520px at -6% 104%, rgba(59, 130, 246, 0.14), transparent 60%),
+    var(--app-bg);
+  background-attachment: fixed;
 }
 
+/* body stays transparent: an opaque body would paint over the z-index:-1 wave layer. */
 body {
-  background: var(--app-bg);
   color: var(--text-primary);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -134,7 +141,9 @@ tr:focus-visible {
   .card {
     border: 1px solid var(--border);
     border-radius: var(--radius-card);
-    background: var(--surface);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 38%), var(--glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
   .card-link {
@@ -252,7 +261,7 @@ tr:focus-visible {
   select.field {
     appearance: none;
     padding-right: 32px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23929D91' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B90A0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     background-position: right 12px center;
     background-repeat: no-repeat;
     cursor: pointer;
@@ -407,7 +416,34 @@ tr:focus-visible {
   .scrim {
     position: fixed;
     inset: 0;
-    background: rgba(5, 7, 5, 0.72);
+    background: rgba(3, 4, 6, 0.72);
+  }
+
+  /* ── Animated wave background ──
+     Each layer is 200% wide and holds two identical wave periods, so sliding it left by
+     half its width loops seamlessly. Only transforms animate: no repaint per frame. */
+  .waves {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .wave-swell {
+    position: absolute;
+    inset: 0;
+    animation: wave-swell ease-in-out infinite alternate;
+  }
+  .wave {
+    width: 200%;
+    height: 100%;
+    will-change: transform;
+    animation: wave-drift linear infinite;
+  }
+  .wave svg {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 
   /* ── Loading placeholder ── */
@@ -430,6 +466,13 @@ tr:focus-visible {
 }
 @keyframes skeleton-pulse {
   50% { opacity: 0.25; }
+}
+@keyframes wave-drift {
+  to { transform: translate3d(-50%, 0, 0); }
+}
+@keyframes wave-swell {
+  from { transform: translate3d(0, -14px, 0); }
+  to   { transform: translate3d(0, 14px, 0); }
 }
 
 .anim-fade   { animation: fade-in var(--duration-base) ease-out; }

@@ -52,7 +52,7 @@ function Logo({ compact, onNavigate }: { compact: boolean; onNavigate?: () => vo
           fill
           sizes="188px"
           loading="eager"
-          className={`mix-blend-screen ${compact ? "object-cover" : "object-contain"}`}
+          className={`mix-blend-screen brightness-150 grayscale ${compact ? "object-cover" : "object-contain"}`}
           style={compact ? { objectPosition: "17% 50%" } : undefined}
         />
       </span>
@@ -202,7 +202,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
         aria-label="Mobile navigation"
         inert={!mobileOpen}
         className={[
-          "fixed inset-y-0 left-0 z-50 flex w-[272px] max-w-[85vw] flex-col border-r border-line bg-sidebar",
+          "fixed inset-y-0 left-0 z-50 flex w-[272px] max-w-[85vw] flex-col border-r border-line bg-sidebar backdrop-blur-xl",
           "transition-transform duration-200 ease-out lg:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         ].join(" ")}
@@ -214,7 +214,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
       <aside
         aria-label="Sidebar"
         style={{ width: collapsed ? "var(--sidebar-w-collapsed)" : "var(--sidebar-w)" }}
-        className="fixed inset-y-0 left-0 z-30 hidden flex-col overflow-hidden border-r border-line bg-sidebar transition-[width] duration-200 ease-out lg:flex"
+        className="fixed inset-y-0 left-0 z-30 hidden flex-col overflow-hidden border-r border-line bg-sidebar backdrop-blur-xl transition-[width] duration-200 ease-out lg:flex"
       >
         <SidebarPanel collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
       </aside>
