@@ -1,119 +1,87 @@
 "use client";
 
 // src/app/trust-ledger/page.tsx
-// Attesta — Trust Ledger.
-// Dark fintech SaaS design. Tailwind only; no new dependencies.
+// Attesta — Trust Ledger. Live data from the gateway via /api/ledger.
+// Tailwind only; no new dependencies.
 
-import type { ReactNode } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import PageHeader from "@/src/components/ui/PageHeader";
+import { Badge, Button, Card, EmptyState, type Tone } from "@/src/components/ui/primitives";
+import { downloadFile, toCsv } from "@/src/lib/download";
+import type { Checkpoint, Decision, LedgerEntry } from "@/src/types";
 
 /* ------------------------- tokens + types ------------------------- */
 
-type Tone = "green" | "amber" | "red" | "white";
+type Ledger = { records: LedgerEntry[]; checkpoint: Checkpoint | null; truncated: boolean };
+type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: Ledger };
 
-const TONE_TEXT: Record<Tone, string> = {
-  green: "text-emerald-400",
-  amber: "text-amber-400",
-  red:   "text-red-400",
-  white: "text-white",
-};
+const DECISION_TONE: Record<Decision, Tone> = { ALLOW: "ok", WARN: "warn", REVIEW: "warn", BLOCK: "crit" };
+const COLUMNS = ["Transaction", "Time (UTC)", "Subject", "Run", "Risk", "Decision"];
 
-const MUTED   = "text-slate-400";
-const DIVIDER = "border-white/[0.07]";
-
-type Verification = "Valid" | "Not yet verified" | "Invalid";
-type LedgerRow = { tx: string; block: string; time: string; type: string; subject: string; verification: Verification; href?: string };
-type Field = { label: string; value: string; tone?: Tone };
-
-const VERIFICATION_BADGE: Record<Verification, string> = {
-  Valid: "bg-emerald-400/10 text-emerald-400 border-emerald-400/20",
-  "Not yet verified": "bg-amber-400/10 text-amber-400 border-amber-400/20",
-  Invalid: "bg-red-400/10 text-red-400 border-red-400/20",
-};
-
-/* ----------------------------- data ----------------------------- */
-
-const LEDGER: LedgerRow[] = [
-  { tx: "0x8f4d92a1", block: "148,291", time: "13:55:19", type: "Signed decision", subject: "build-runner-1838", verification: "Valid", href: "/workload-identity" },
-  { tx: "0x3c7e10b4", block: "148,289", time: "13:41:07", type: "Provenance record", subject: "run #1837", verification: "Valid", href: "/provenance" },
-  { tx: "0x9a2f58e6", block: "148,276", time: "13:20:44", type: "Signed decision", subject: "test-runner-1836", verification: "Not yet verified", href: "/workload-identity" },
-  { tx: "0x1b4c73d9", block: "148,252", time: "12:58:30", type: "Evidence reference", subject: "run #1835", verification: "Invalid", href: "/pipeline-runs" },
-];
-
-const NETWORK: Field[] = [
-  { label: "Channel", value: "attesta-consortium-main" },
-  { label: "Peers online", value: "4 of 4 active", tone: "green" },
-  { label: "Block height", value: "148,294" },
-  { label: "Consensus", value: "Raft (TLS v1.3)" },
-];
-
-const COLUMNS = ["Tx Hash", "Block", "Time (UTC)", "Record Type", "Subject", "Verification"];
-
-/* --------------------------- primitives --------------------------- */
-
-function Card({ title, children }: { title?: string; children: ReactNode }) {
-  return (
-    <section className="rounded-xl border border-white/[0.07] bg-[#0D1117] p-5">
-      {title && <h2 className="mb-3 text-sm font-semibold text-white">{title}</h2>}
-      {children}
-    </section>
-  );
-}
+const utc = (seconds: number) => new Date(seconds * 1000).toISOString().replace("T", " ").slice(0, 19);
+const short = (hash: string) => `${hash.slice(0, 12)}…`;
+const subject = (e: LedgerEntry) => `${e.record.ecosystem}/${e.record.package}@${e.record.version}`;
+// Fabric entries are identified by transaction id; the SQLite dev backend only has a record hash.
+const txRef = (e: LedgerEntry) => e.tx_id ?? e.record_hash;
+const decision = (e: LedgerEntry) => e.effective_decision ?? e.record.decision;
 
 /* ----------------------------- ledger ----------------------------- */
 
-function LedgerTable() {
+function LedgerTable({ records }: { records: LedgerEntry[] }) {
   return (
-    <Card>
-      <div className="flex items-center justify-between pb-3">
-        <h2 className="text-sm font-semibold text-white">Committed Transactions</h2>
-        <span className="text-[11px] text-[#6B7280]">Hyperledger Fabric Channel</span>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-xs">
-          <thead>
-            <tr className={`border-b text-slate-400 ${DIVIDER}`}>
-              {COLUMNS.map((c) => (
-                <th key={c} scope="col" className="py-2.5 pr-4 font-medium">{c}</th>
-              ))}
+    <div className="overflow-x-auto">
+      <table className="data-table min-w-[760px]">
+        <thead>
+          <tr>
+            {COLUMNS.map((c) => <th key={c} scope="col">{c}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((e) => (
+            <tr key={e.record.record_id}>
+              <td className="font-mono" title={txRef(e)}>{short(txRef(e))}</td>
+              <td className="tabnum font-mono text-muted">{utc(e.timestamp)}</td>
+              <td className="font-mono text-fg">{subject(e)}</td>
+              <td className="font-mono text-muted">{e.record.run_id}</td>
+              <td className="tabnum font-mono text-fg">{e.record.risk_score}</td>
+              <td>
+                <Badge tone={DECISION_TONE[decision(e)]}>{decision(e)}</Badge>
+                {decision(e) !== e.record.decision && <span className="ml-2 text-2xs text-muted">overrides {e.record.decision}</span>}
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {LEDGER.map((r) => (
-              <tr key={r.tx} className={`border-t hover:bg-white/[0.025] transition-colors ${DIVIDER}`}>
-                <td className="py-3 pr-4 font-mono font-semibold text-cyan-400">
-                  {r.href ? (
-                    <Link href={r.href} className="hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500">
-                      {r.tx}
-                    </Link>
-                  ) : r.tx}
-                </td>
-                <td className="py-3 pr-4 font-mono text-white/90">{r.block}</td>
-                <td className={`py-3 pr-4 font-mono text-[11px] ${MUTED}`}>{r.time}</td>
-                <td className="py-3 pr-4 font-medium text-white">{r.type}</td>
-                <td className="py-3 pr-4 font-mono text-white/90">{r.subject}</td>
-                <td className="py-3">
-                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${VERIFICATION_BADGE[r.verification]}`}>
-                    {r.verification}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
-function NetworkStatusCard() {
+function checkpointFields(c: Checkpoint | null): { label: string; value: string; title?: string }[] {
+  if (!c) return [{ label: "Records", value: "0" }];
+  if (c.kind === "fabric") {
+    return [
+      { label: "Ledger", value: "Hyperledger Fabric" },
+      { label: "Channel", value: c.channel },
+      { label: "Block height", value: String(c.height) },
+      { label: "Tip block hash", value: short(c.current_block_hash), title: c.current_block_hash },
+    ];
+  }
+  return [
+    { label: "Ledger", value: "Merkle log (dev)" },
+    { label: "Records", value: String(c.record_count) },
+    { label: "Merkle root", value: short(c.merkle_root), title: c.merkle_root },
+    { label: "Signed at (UTC)", value: utc(c.timestamp) },
+  ];
+}
+
+function CheckpointCard({ checkpoint }: { checkpoint: Checkpoint | null }) {
   return (
-    <Card title="Network status">
-      <dl className="divide-y divide-white/[0.05]">
-        {NETWORK.map((f) => (
+    <Card title="Ledger state">
+      <dl className="divide-y divide-line">
+        {checkpointFields(checkpoint).map((f) => (
           <div key={f.label} className="flex items-center justify-between gap-4 py-2 text-xs">
-            <dt className={`shrink-0 ${MUTED}`}>{f.label}</dt>
-            <dd className={`break-all text-right font-mono font-semibold ${TONE_TEXT[f.tone ?? "white"]}`}>{f.value}</dd>
+            <dt className="shrink-0 text-muted">{f.label}</dt>
+            <dd className="min-w-0 break-words text-right font-mono text-fg" title={f.title}>{f.value}</dd>
           </div>
         ))}
       </dl>
@@ -123,9 +91,9 @@ function NetworkStatusCard() {
 
 function LedgerNote() {
   return (
-    <Card title="Ledger Guarantee">
-      <p className={`text-xs leading-relaxed ${MUTED}`}>
-        Only cryptographically signed decisions, build provenance records, and immutable evidence references are committed to the distributed ledger. Ordinary pipeline telemetry remains in the high-throughput event store.
+    <Card title="Ledger guarantee">
+      <p className="text-xs leading-relaxed text-muted">
+        Every record is a scorer-signed trust decision. The gateway checks the caller, signature and policy, and on Fabric the chaincode re-checks them on each organisation&apos;s peer before the record is committed.
       </p>
     </Card>
   );
@@ -133,42 +101,54 @@ function LedgerNote() {
 
 /* --------------------------------- page --------------------------------- */
 
-export default function TrustLedgerPage() {
-  return (
-    <div className="space-y-4 p-4 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">Trust Ledger</h1>
-          <p className={`mt-0.5 text-xs ${MUTED}`}>Signed decisions and provenance references recorded on Hyperledger Fabric</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="rounded-full border border-amber-400/60 px-2.5 py-0.5 text-[10px] font-medium text-amber-300">
-            Sample data
-          </span>
-          <button
-            onClick={() => {
-              const headers = COLUMNS.join(",");
-              const rows = LEDGER.map(l => `${l.tx},${l.block},${l.time},"${l.type}","${l.subject}",${l.verification}`).join("\n");
-              const blob = new Blob([headers + "\n" + rows], { type: "text/csv" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url; a.download = "trust-ledger-export.csv"; a.click();
-              URL.revokeObjectURL(url);
-            }}
-            className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-white hover:bg-white/[0.08] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" />
-            </svg>
-            Export Ledger
-          </button>
-        </div>
-      </div>
+function exportLedger(records: LedgerEntry[]) {
+  const rows = records.map((e) => [txRef(e), utc(e.timestamp), subject(e), e.record.run_id, e.record.risk_score, decision(e)]);
+  downloadFile("trust-ledger.csv", "text/csv", toCsv(COLUMNS, rows));
+}
 
-      <div className="grid items-start gap-4 lg:grid-cols-[1fr_300px]">
-        <LedgerTable />
-        <div className="space-y-4">
-          <NetworkStatusCard />
+export default function TrustLedgerPage() {
+  const [state, setState] = useState<State>({ status: "loading" });
+  const [reloads, setReloads] = useState(0);
+  const load = () => setReloads((n) => n + 1);
+
+  useEffect(() => {
+    let live = true;
+    fetch("/api/ledger", { cache: "no-store" })
+      .then(async (res): Promise<State> => {
+        const body = await res.json();
+        return res.ok ? { status: "ready", data: body } : { status: "error", message: body.error ?? `HTTP ${res.status}` };
+      })
+      .catch((): State => ({ status: "error", message: "Dashboard server is unreachable" }))
+      .then((next) => { if (live) setState(next); });
+    return () => { live = false; };
+  }, [reloads]);
+
+  const records = state.status === "ready" ? state.data.records : [];
+  const truncated = state.status === "ready" && state.data.truncated;
+
+  return (
+    <div className="page">
+      <PageHeader
+        title="Trust Ledger"
+        subtitle="Signed trust decisions recorded by the Attesta gateway"
+        actions={
+          <>
+            <Button onClick={load}>Refresh</Button>
+            <Button onClick={() => exportLedger(records)} disabled={records.length === 0}>Export ledger</Button>
+          </>
+        }
+      />
+
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <Card flush title="Ledger records" aside={<span className="text-2xs text-muted">{truncated ? `Newest first, first ${records.length} loaded` : "Newest first"}</span>}>
+          {state.status === "loading" && <EmptyState title="Loading ledger…" />}
+          {state.status === "error" && (
+            <EmptyState title="Could not load the ledger" action={<Button onClick={load}>Retry</Button>}>{state.message}</EmptyState>
+          )}
+          {state.status === "ready" && (records.length ? <LedgerTable records={records} /> : <EmptyState title="No records yet">The ledger is empty until the scoring service submits a signed record.</EmptyState>)}
+        </Card>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+          <CheckpointCard checkpoint={state.status === "ready" ? state.data.checkpoint : null} />
           <LedgerNote />
         </div>
       </div>
