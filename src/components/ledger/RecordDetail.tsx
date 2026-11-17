@@ -53,6 +53,10 @@ export default function RecordDetail({ e }: { e: LedgerEntry }) {
           <Row label="Model version"><Hash value={r.model_version_hash} /></Row>
           <Row label="Evidence hash"><Hash value={r.evidence_hash} /></Row>
           <Row label="Policy version">{r.policy_version}</Row>
+          <Row label="Policy bundle">{r.policy_bundle_hash ? <Hash value={r.policy_bundle_hash} /> : "–"}</Row>
+          <Row label="Decision signed by">
+            {r.decision_key_id ? <Badge tone="ok">{r.decision_key_id}</Badge> : <Badge tone="warn">Not signed</Badge>}
+          </Row>
         </dl>
       </section>
 

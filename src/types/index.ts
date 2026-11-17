@@ -31,6 +31,8 @@ export interface LedgerEntry {
     llm_evidence_hash: string | null;
     model_version_hash: string;
     policy_version: string;
+    policy_bundle_hash?: string | null; // set once decisions are signed by the policy service
+    decision_key_id?: string | null;
     runner_class: string;
     node_attestor: string;
     attestation_verified: boolean;
