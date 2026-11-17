@@ -6,6 +6,8 @@ import DecisionTable from "@/src/components/ledger/DecisionTable";
 import LedgerGate from "@/src/components/ledger/LedgerGate";
 import PageHeader from "@/src/components/ui/PageHeader";
 import { Button, Card, FilterSelect, SearchField } from "@/src/components/ui/primitives";
+import { Donut, HBars, RiskHistogram } from "@/src/components/charts/charts";
+import { decisionSlices, flagBars } from "@/src/lib/chartData";
 import { effectiveDecision, subject } from "@/src/lib/ledger";
 import type { LedgerEntry } from "@/src/types";
 
@@ -23,6 +25,11 @@ function Decisions({ records, reload }: { records: LedgerEntry[]; reload: () => 
     <>
       <PageHeader title="Trust decisions" subtitle="Signed decisions from the ledger, newest first"
         actions={<Button onClick={reload}>Refresh</Button>} />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card title="Decisions"><Donut slices={decisionSlices(records)} center={String(records.length)} caption="artifacts" /></Card>
+        <Card title="Why packages get flagged" aside={<span className="text-2xs text-muted">artifacts per behaviour</span>}><HBars rows={flagBars(records)} /></Card>
+        <Card title="Where scores land"><RiskHistogram scores={records.map((e) => e.record.risk_score)} /></Card>
+      </div>
       <Card flush title="Decision log" aside={
         <div className="flex flex-wrap items-center gap-2">
           <FilterSelect name="Decision" value={decision} options={["any", "ALLOW", "WARN", "REVIEW", "BLOCK"]} onChange={setDecision} />

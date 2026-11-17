@@ -467,6 +467,21 @@ tr:focus-visible {
 @keyframes skeleton-pulse {
   50% { opacity: 0.25; }
 }
+/* Chart and diagram motion (components/charts, components/diagrams) */
+@keyframes arc-in { from { stroke-dasharray: 0 var(--c); } }
+@keyframes bar-rise { from { transform: scaleY(0); } }
+@keyframes bar-grow { from { transform: scaleX(0); } }
+@keyframes line-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes flow-dash { to { stroke-dashoffset: -28; } }
+@keyframes node-pulse { 50% { opacity: 0.55; } }
+.arc-in { animation: arc-in 900ms var(--ease-out) both; }
+.bar-rise { transform-box: fill-box; transform-origin: bottom; animation: bar-rise 700ms var(--ease-out) both; }
+.bar-grow { transform-origin: left; animation: bar-grow 800ms var(--ease-out) both; }
+.line-draw { stroke-dasharray: 1; animation: line-draw 1100ms var(--ease-out) both; }
+.fade-in-slow { animation: fade-in 800ms ease-out both; }
+.flow-dash { stroke-dasharray: 6 8; animation: flow-dash 1.4s linear infinite; }
+.node-pulse { animation: node-pulse 2.4s ease-in-out infinite; }
+
 @keyframes wave-drift {
   to { transform: translate3d(-50%, 0, 0); }
 }

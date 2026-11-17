@@ -8,6 +8,9 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/src/components/ui/PageHeader";
 import { Badge, Button, Card, EmptyState, SearchField, StatusDot, TONE_TEXT, type Tone } from "@/src/components/ui/primitives";
+import { AreaTrend, Donut, RiskHistogram } from "@/src/components/charts/charts";
+import PipelineDiagram from "@/src/components/diagrams/PipelineDiagram";
+import { decisionSlices, flowStats, riskPoints } from "@/src/lib/chartData";
 import { downloadFile } from "@/src/lib/download";
 import { DECISION_TONE, effectiveDecision, subject, useLedger, utc, type LedgerState } from "@/src/lib/ledger";
 import type { Decision, LedgerEntry } from "@/src/types";
@@ -242,6 +245,19 @@ export default function OverviewPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats(state).map((s) => <StatCard key={s.label} {...s} />)}
       </div>
+
+      {state.status === "ready" && (
+        <>
+          <Card title="How a decision is made" aside={<span className="text-2xs text-muted">Live counts · click a stage to open its page</span>}>
+            <PipelineDiagram s={flowStats(state.data.records, state.data.checkpoint)} />
+          </Card>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Card title="Decision mix"><Donut slices={decisionSlices(state.data.records)} center={String(state.data.records.length)} caption="artifacts" /></Card>
+            <Card title="Risk score over time" aside={<span className="text-2xs text-muted">0 = safe, 1000 = dangerous</span>}><AreaTrend points={riskPoints(state.data.records)} yLabel="Risk score" /></Card>
+            <Card title="Where scores land" aside={<span className="text-2xs text-muted">artifacts per score range</span>}><RiskHistogram scores={state.data.records.map((e) => e.record.risk_score)} /></Card>
+          </div>
+        </>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <DecisionsChart bars={bars} />

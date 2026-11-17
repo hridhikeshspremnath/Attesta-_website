@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import LedgerGate from "@/src/components/ledger/LedgerGate";
 import PageHeader from "@/src/components/ui/PageHeader";
 import { Badge, Button, Card, FilterSelect } from "@/src/components/ui/primitives";
+import { Donut } from "@/src/components/charts/charts";
 import { DECISION_TONE, effectiveDecision, subject, utc } from "@/src/lib/ledger";
 import type { LedgerEntry } from "@/src/types";
 
@@ -23,6 +24,9 @@ function Runs({ records, reload }: { records: LedgerEntry[]; reload: () => void 
         badges={<Badge tone={verified ? "ok" : "warn"}>{verified} of {records.length} runs attested</Badge>}
         actions={<Button onClick={reload}>Refresh</Button>}
       />
+      <Card title="Runner attestation" aside={<span className="text-2xs text-muted">only attested runs can be ALLOW</span>}>
+        <Donut slices={[{ label: "Verified", value: verified, tone: "ok" }, { label: "Not verified", value: records.length - verified, tone: "warn" }]} center={`${verified}/${records.length}`} caption="attested" />
+      </Card>
       <Card flush title="Runs" aside={<FilterSelect name="Attestation" value={attested} options={["any", "verified", "unverified"]} onChange={setAttested} />}>
         <div className="overflow-x-auto">
           <table className="data-table min-w-[780px]">
