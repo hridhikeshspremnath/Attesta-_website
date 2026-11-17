@@ -49,6 +49,14 @@ export type Checkpoint =
   | { kind: "fabric"; channel: string; height: number; current_block_hash: string }
   | { kind: "merkle"; record_count: number; merkle_root: string; timestamp: number };
 
+/** SPIRE snapshot written by deploy/spire-demo/scripts/identity-snapshot.sh. */
+export interface IdentitySnapshot {
+  taken_at: number; // unix seconds
+  trust_domain: string;
+  entries: { id: string; spiffe_id: string; parent_id: string; selectors: string[]; x509_svid_ttl: number; admin: boolean; created_at: number }[];
+  agents: { id: string; attestation_type: string; version: string; banned: boolean; can_reattest: boolean; svid_expires_at: number }[];
+}
+
 export interface WorkloadRecord {
   id: string;
   name: string;
