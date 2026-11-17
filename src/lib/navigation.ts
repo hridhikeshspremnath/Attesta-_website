@@ -32,7 +32,7 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
   {
     title: "Investigate",
     items: [
-      { label: "Incidents & Response", href: "/incidents", badge: 1, keywords: "incident alert remediation" },
+      { label: "Incidents & Response", href: "/incidents", keywords: "incident alert remediation" },
       { label: "Trust Ledger", href: "/trust-ledger", keywords: "hyperledger fabric block transaction tx" },
       { label: "Provenance & Verification", href: "/provenance", keywords: "slsa signature attestation build" },
     ],

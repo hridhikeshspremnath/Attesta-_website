@@ -19,8 +19,28 @@ export interface LedgerEntry {
     package: string;
     version: string;
     risk_score: number; // permille
+    risk_band: string;
     decision: Decision;
+    artifact_digest: string;
+    flag_install_exec: boolean;
+    flag_network: boolean;
+    flag_obfuscation: boolean;
+    flag_cred_access: boolean;
+    flag_process_spawn: boolean;
+    llm_verdict: "BENIGN" | "SUSPICIOUS" | "MALICIOUS" | "NOT_RUN";
+    llm_evidence_hash: string | null;
+    model_version_hash: string;
+    policy_version: string;
+    runner_class: string;
+    node_attestor: string;
+    attestation_verified: boolean;
+    attestation_digest: string | null;
+    evidence_hash: string;
+    scorer_key_id: string;
+    submitted_by_spiffe_id: string;
   };
+  block_number?: number | null;
+  overrides?: { decision: Decision; previous_decision: Decision; reason: string; by_msp: string; tx_time: number }[];
 }
 
 export type Checkpoint =
