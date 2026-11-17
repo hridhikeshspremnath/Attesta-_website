@@ -147,11 +147,20 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 /* ------------------------------------------------------------------ */
 
 function ProfilePanel({ onClose }: { onClose: () => void }) {
+  const [user, setUser] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null)).then((b) => { if (live && b) setUser(b.user); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  // Full reload on purpose: it drops all client state and re-runs the sign-in gate.
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+  const signOut = () => fetch("/api/auth/logout", { method: "POST" }).finally(() => { window.location.href = "/login"; });
   return (
     <div role="dialog" aria-label="User profile menu" className={`${PANEL} sm:w-[240px]`}>
       <div className="border-b border-line px-4 py-3">
-        <p className="text-sm font-semibold text-fg">Admin</p>
-        <p className="text-2xs text-muted">admin@attesta.dev · demo session</p>
+        <p className="text-sm font-semibold text-fg">{user ?? "…"}</p>
+        <p className="text-2xs text-muted">Signed in</p>
       </div>
       <ul className="py-1">
         {[
@@ -166,9 +175,8 @@ function ProfilePanel({ onClose }: { onClose: () => void }) {
         ))}
       </ul>
       <div className="border-t border-line py-1">
-        <button type="button" disabled className="flex w-full cursor-not-allowed items-center justify-between gap-2 px-4 py-2 text-left text-xs text-muted">
+        <button type="button" onClick={signOut} className="block w-full px-4 py-2 text-left text-xs text-muted transition-colors hover:bg-raised/50 hover:text-fg">
           Sign out
-          <span className="text-2xs">Auth not connected</span>
         </button>
       </div>
     </div>

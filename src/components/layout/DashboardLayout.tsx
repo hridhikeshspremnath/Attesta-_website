@@ -29,6 +29,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const crumbs = useBreadcrumbs();
 
+  // The sign-in page is a bare page: no sidebar, no ledger calls.
+  if (usePathname() === "/login") return <><WaveBackground />{children}</>;
+
   return (
     <div className="flex min-h-screen text-fg">
       <WaveBackground />

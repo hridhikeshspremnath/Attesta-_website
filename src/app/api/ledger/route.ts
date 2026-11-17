@@ -1,5 +1,7 @@
 // GET /api/ledger — read-only view of the gateway's ledger for the dashboard.
+import { cookies } from "next/headers";
 import { connection } from "next/server";
+import { COOKIE, sessionUser } from "@/src/lib/auth";
 import { gatewayGet } from "@/src/lib/gateway";
 import type { Checkpoint, LedgerEntry } from "@/src/types";
 
@@ -9,6 +11,9 @@ const MAX_PAGES = 5;
 
 export async function GET() {
   await connection(); // always request-time: never prerender ledger state
+  if (!sessionUser((await cookies()).get(COOKIE)?.value)) {
+    return Response.json({ error: "Sign in required" }, { status: 401 }); // checked here too, not only in proxy.ts
+  }
   try {
     const checkpoint = await gatewayGet<Checkpoint>("/checkpoint");
     if (checkpoint.status !== 200 && checkpoint.status !== 404) throw new Error(`gateway /checkpoint returned ${checkpoint.status}`);
