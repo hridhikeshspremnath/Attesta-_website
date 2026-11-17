@@ -1,178 +1,94 @@
 "use client";
 
-// src/app/integrations/page.tsx
-// Attesta — Integrations & Settings.
-// Tailwind only; no new dependencies.
-
-import { useState } from "react";
+// src/app/integrations/page.tsx — live status of every part the system is built from, measured, not configured here.
 import PageHeader from "@/src/components/ui/PageHeader";
-import { Badge, Button, Card, Dialog, SampleBadge, Tabs, tabId } from "@/src/components/ui/primitives";
+import { Badge, Button, Card, type Tone } from "@/src/components/ui/primitives";
+import { useFeed } from "@/src/lib/feeds";
+import { effectiveDecision, shortHash, useLedger, utc } from "@/src/lib/ledger";
+import type { IdentitySnapshot, PolicyView } from "@/src/types";
 
-/* ------------------------- tokens ------------------------- */
+type Status = { name: string; tone: Tone; label: string; lines: string[]; where: string };
 
-const TABS = ["Integrations", "Users & roles", "Alerting"] as const;
-type Tab = (typeof TABS)[number];
+export default function IntegrationsPage() {
+  const ledger = useLedger();
+  const identity = useFeed<{ snapshot: IdentitySnapshot; now: number }>("/api/identity");
+  const policy = useFeed<PolicyView>("/api/policy");
+  const records = ledger.state.status === "ready" ? ledger.state.data.records : [];
+  const cp = ledger.state.status === "ready" ? ledger.state.data.checkpoint : null;
 
-const PANEL_ID = "settings-panel";
+  const down = (label = "Unreachable"): Pick<Status, "tone" | "label"> => ({ tone: "crit", label });
+  const wait = { tone: "neutral" as Tone, label: "Checking…" };
 
-type Integration = { name: string; detail: string; status: "Connected" | "Not configured" };
-type UserRow = { name: string; role: string; can: string; email: string };
+  const fabric: Status = {
+    name: "Hyperledger Fabric", where: "network/ (3 organisations, 2-of-3 endorsement)",
+    ...(ledger.state.status === "ready" ? (cp?.kind === "fabric" ? { tone: "ok" as Tone, label: "Connected" } : { tone: "warn" as Tone, label: "Dev ledger" }) : ledger.state.status === "error" ? down() : wait),
+    lines: cp?.kind === "fabric" ? [`Channel ${cp.channel}`, `Block height ${cp.height}`, `${records.length} records`] : [],
+  };
 
-/* ----------------------------- data ----------------------------- */
+  let spire: Status = { name: "SPIRE", where: "deploy/spire-demo (scripts/identity-snapshot.sh)", ...wait, lines: [] };
+  if (identity.state.status === "ready") {
+    const { snapshot: s, now } = identity.state.data;
+    const age = now - s.taken_at;
+    const active = s.agents.filter((a) => a.svid_expires_at > now && !a.banned).length;
+    spire = { ...spire, tone: age > 120 ? "warn" : "ok", label: age > 120 ? "Snapshot stale" : "Connected",
+      lines: [`Trust domain ${s.trust_domain}`, `${s.entries.filter((e) => !e.selectors.some((x) => x.startsWith("spiffe_id:"))).length} workloads, ${active} active agent${active === 1 ? "" : "s"}`, `Snapshot ${Math.max(0, age)} s old`] };
+  } else if (identity.state.status === "error") spire = { ...spire, ...down("No snapshot"), lines: [identity.state.message] };
 
-const INTEGRATIONS: Integration[] = [
-  { name: "GitHub",             detail: "Webhook, HMAC secret, 4 active repositories synced", status: "Connected" },
-  { name: "SPIRE",              detail: "Trust domain attesta.dev, Node & Workload Attestor", status: "Connected" },
-  { name: "OPA",                detail: "Policy bundle v7.1.0, active decision logger",       status: "Connected" },
-  { name: "Hyperledger Fabric", detail: "Channel attesta-consortium-main, raft consensus",   status: "Connected" },
-  { name: "ML package model",   detail: "Inference endpoint https://ml.attesta.local, v1.4.2", status: "Connected" },
-  { name: "Alerting",           detail: "PagerDuty, Slack webhook, email notifications",       status: "Not configured" },
-];
+  let opa: Status = { name: "Policy: OPA rules and signed decisions", where: "config/policy.yaml, config/policy.rego", ...wait, lines: [] };
+  if (policy.state.status === "ready") {
+    const p = policy.state.data;
+    opa = { ...opa, tone: p.matches ? "ok" : "warn", label: p.matches ? "Pinned on-chain" : p.onchain ? "Differs from chain" : "Chain not checked",
+      lines: [`Version ${p.local.policy_version}`, `Bundle ${shortHash(p.local.bundle_hash ?? "–")}`, p.local.signed_decisions_required ? "Decisions must be signed" : "Signing not required"] };
+  } else if (policy.state.status === "error") opa = { ...opa, ...down(), lines: [policy.state.message] };
 
-const USERS: UserRow[] = [
-  { name: "Sarah Connor",  role: "Admin",    can: "Configure, respond, approve", email: "sarah.c@attesta.dev" },
-  { name: "Alex Chen",     role: "Analyst",  can: "Investigate, request actions", email: "alex.chen@attesta.dev" },
-  { name: "David Kim",     role: "Auditor",  can: "Read only, export reports",    email: "david.kim@attesta.dev" },
-];
+  const latest = records[0];
+  const detector: Status = {
+    name: "ML package detector", where: "attesta_DL, config/scoring.yaml (model_factory)",
+    ...(ledger.state.status === "error" ? down("No data") : records.length ? { tone: "ok" as Tone, label: "Scoring" } : { tone: "warn" as Tone, label: "No scores yet" }),
+    lines: latest ? [`${records.length} packages scored`, `Model ${shortHash(latest.record.model_version_hash)}`, `Last ${utc(latest.timestamp)} UTC`] : [],
+  };
 
-const ALERT_RULES = [
-  "Notify on HIGH severity incidents",
-  "Notify on SVID expiration within 15 minutes",
-  "Notify on policy check DENY spikes (>50 in 1 hour)",
-];
+  const reviewed = records.filter((e) => e.record.llm_verdict !== "NOT_RUN");
+  const llm: Status = {
+    name: "LLM review", where: "ATTESTA_LLM_MODEL in deploy/spire-demo/.env",
+    ...(ledger.state.status === "error" ? down("No data") : reviewed.length ? { tone: "ok" as Tone, label: "Active" } : { tone: "warn" as Tone, label: "No reviews yet" }),
+    lines: reviewed.length ? [`${reviewed.length} borderline packages reviewed`, `Latest verdict ${reviewed[0].record.llm_verdict}`] : ["Reviews packages scoring 300+ or with flags"],
+  };
 
-/* ----------------------------- sections ----------------------------- */
+  const attested = records.filter((e) => e.record.attestation_verified).length;
+  const oidc: Status = {
+    name: "Runner attestation (GitHub OIDC)", where: "attestation_mode in config/scoring.yaml",
+    ...(ledger.state.status === "error" ? down("No data") : attested ? { tone: "ok" as Tone, label: "Verifying" } : { tone: "warn" as Tone, label: "Not verifying yet" }),
+    lines: [`${attested} of ${records.length} runs attested`, attested ? "ALLOW is possible for attested runs" : "Unattested runs are held at REVIEW"],
+  };
 
-function IntegrationCard({ i, onManage }: { i: Integration; onManage: (i: Integration) => void }) {
-  const connected = i.status === "Connected";
-  return (
-    <section className="card flex flex-col p-5">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-base font-semibold text-fg">{i.name}</h3>
-        <Badge tone={connected ? "ok" : "warn"}>{i.status}</Badge>
-      </div>
-      <p className="mt-2 flex-1 text-xs leading-relaxed text-muted">{i.detail}</p>
-      <div className="mt-4">
-        <Button size="sm" onClick={() => onManage(i)}>View configuration</Button>
-      </div>
-    </section>
-  );
-}
+  const allowed = records.filter((e) => effectiveDecision(e) === "ALLOW").length;
+  const gate: Status = {
+    name: "Deploy gate", where: "scripts/deploy-gate.sh",
+    ...(ledger.state.status === "error" ? down("No data") : { tone: "ok" as Tone, label: "Enforcing" }),
+    lines: [`${allowed} artifact${allowed === 1 ? "" : "s"} may deploy`, `${records.length - allowed} refused until the decision changes`],
+  };
 
-function IntegrationGrid({ items, onManage }: { items: Integration[]; onManage: (i: Integration) => void }) {
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {items.map((i) => <IntegrationCard key={i.name} i={i} onManage={onManage} />)}
-    </div>
-  );
-}
-
-function UsersTable() {
-  return (
-    <Card title="Team members & permissions" flush>
-      <div className="overflow-x-auto">
-        <table className="data-table min-w-[620px]">
-          <thead>
-            <tr>
-              {["User", "Email", "Role", "Permissions"].map((h) => <th key={h} scope="col">{h}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {USERS.map((u) => (
-              <tr key={u.email}>
-                <td className="font-medium text-fg">{u.name}</td>
-                <td className="font-mono text-muted">{u.email}</td>
-                <td><Badge>{u.role}</Badge></td>
-                <td className="text-fg">{u.can}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
-function AlertRules({ channelConnected }: { channelConnected: boolean }) {
-  return (
-    <Card title="Alert notification rules">
-      <ul className="divide-y divide-line text-xs">
-        {ALERT_RULES.map((rule) => (
-          <li key={rule} className="flex items-center justify-between gap-4 py-2.5 first:pt-0">
-            <span className="text-fg">{rule}</span>
-            <Badge tone="neutral">Rule on</Badge>
-          </li>
-        ))}
-      </ul>
-      {!channelConnected && (
-        <p className="mt-2 border-t border-line pt-3 text-xs text-warn">
-          No delivery channel is configured, so these rules do not send notifications yet.
-        </p>
-      )}
-    </Card>
-  );
-}
-
-function ConfigDialog({ integration, onClose }: { integration: Integration; onClose: () => void }) {
-  const slug = integration.name.toLowerCase().replace(/\s+/g, "-");
-  return (
-    <Dialog
-      title={integration.name}
-      description="Sample configuration. Changes require the integrations API, which is not connected in this build."
-      onClose={onClose}
-      footer={
-        <>
-          <Button onClick={onClose}>Close</Button>
-          <Button variant="primary" disabled title="Integrations API not connected">Save changes</Button>
-        </>
-      }
-    >
-      <div className="space-y-3">
-        <div>
-          <label htmlFor="config-endpoint" className="field-label">Endpoint URL / target</label>
-          <input id="config-endpoint" type="text" readOnly value={`https://api.${slug}.attesta.internal`} className="field" />
-        </div>
-        <div>
-          <label htmlFor="config-secret" className="field-label">Secret / token</label>
-          <input id="config-secret" type="text" readOnly value="Hidden. Never shown after saving." className="field" />
-        </div>
-      </div>
-    </Dialog>
-  );
-}
-
-/* --------------------------------- page --------------------------------- */
-
-export default function SettingsPage() {
-  const [tab, setTab] = useState<Tab>("Integrations");
-  const [active, setActive] = useState<Integration | null>(null);
-
-  const alerting = INTEGRATIONS.filter((i) => i.name === "Alerting");
+  const cards = [fabric, spire, opa, detector, llm, oidc, gate];
+  const reload = () => { ledger.reload(); identity.reload(); policy.reload(); };
+  const bad = cards.filter((c) => c.tone === "crit").length;
 
   return (
     <div className="page">
       <PageHeader
-        title="Integrations & Settings"
-        subtitle="External connections, team access and alert routing"
-        badges={<SampleBadge />}
+        title="Integrations"
+        subtitle="Live status of each part of the system, measured from the ledger, the policy and the identity feed"
+        badges={<Badge tone={bad ? "crit" : "ok"}>{bad ? `${bad} unreachable` : "All reachable"}</Badge>}
+        actions={<Button onClick={reload}>Refresh</Button>}
       />
-
-      <Tabs tabs={TABS} value={tab} onChange={setTab} label="Settings sections" panelId={PANEL_ID} />
-
-      <div id={PANEL_ID} role="tabpanel" aria-labelledby={tabId(PANEL_ID, tab)} className="space-y-4">
-        {tab === "Integrations" && <IntegrationGrid items={INTEGRATIONS} onManage={setActive} />}
-
-        {tab === "Users & roles" && <UsersTable />}
-
-        {tab === "Alerting" && (
-          <>
-            <IntegrationGrid items={alerting} onManage={setActive} />
-            <AlertRules channelConnected={alerting.every((i) => i.status === "Connected")} />
-          </>
-        )}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {cards.map((c) => (
+          <Card key={c.name} title={c.name} aside={<Badge tone={c.tone}>{c.label}</Badge>}>
+            <ul className="space-y-1 text-xs text-fg">{c.lines.map((l) => <li key={l} className="break-words">{l}</li>)}</ul>
+            <p className="mt-3 text-2xs text-muted">Configured in {c.where}</p>
+          </Card>
+        ))}
       </div>
-
-      {active && <ConfigDialog integration={active} onClose={() => setActive(null)} />}
     </div>
   );
 }

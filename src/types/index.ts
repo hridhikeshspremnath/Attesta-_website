@@ -49,6 +49,17 @@ export type Checkpoint =
   | { kind: "fabric"; channel: string; height: number; current_block_hash: string }
   | { kind: "merkle"; record_count: number; merkle_root: string; timestamp: number };
 
+/** GET /policy on the gateway. */
+export interface PolicyBand { name: string; min_score: number; max_score: number; decision: Decision }
+export interface PolicyView {
+  local: {
+    policy_version: string; bands: PolicyBand[]; bundle_hash: string | null; rego: string | null;
+    signed_decisions_required: boolean; allowed_scorer_spiffe_id: string;
+  };
+  onchain: { policy_version: string; bundle_hash?: string; allowed_scorer_spiffe_id: string; bands: PolicyBand[] } | null;
+  matches: boolean;
+}
+
 /** SPIRE snapshot written by deploy/spire-demo/scripts/identity-snapshot.sh. */
 export interface IdentitySnapshot {
   taken_at: number; // unix seconds

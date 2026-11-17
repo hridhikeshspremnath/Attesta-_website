@@ -2,6 +2,7 @@
 
 // Shared client access to /api/ledger plus the small formatters every ledger view needs.
 import { useEffect, useState } from "react";
+import { REFRESH_MS, usePolling } from "@/src/lib/live";
 import type { Tone } from "@/src/components/ui/primitives";
 import type { Checkpoint, Decision, LedgerEntry } from "@/src/types";
 
@@ -22,6 +23,7 @@ export const effectiveDecision = (e: LedgerEntry): Decision => e.effective_decis
 export function useLedger(): { state: LedgerState; reload: () => void } {
   const [state, setState] = useState<LedgerState>({ status: "loading" });
   const [reloads, setReloads] = useState(0);
+  const tick = usePolling(REFRESH_MS);
 
   useEffect(() => {
     let live = true;
@@ -35,7 +37,7 @@ export function useLedger(): { state: LedgerState; reload: () => void } {
       .catch((): LedgerState => ({ status: "error", message: "Dashboard server is unreachable" }))
       .then((next) => { if (live) setState(next); });
     return () => { live = false; };
-  }, [reloads]);
+  }, [reloads, tick]);
 
   return { state, reload: () => setReloads((n) => n + 1) };
 }

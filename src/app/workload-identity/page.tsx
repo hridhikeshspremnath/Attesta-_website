@@ -1,35 +1,16 @@
 "use client";
 
 // src/app/workload-identity/page.tsx — SPIRE registration entries and agents (snapshot), joined with the ledger.
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import PageHeader from "@/src/components/ui/PageHeader";
+import { useFeed } from "@/src/lib/feeds";
 import { Badge, Button, Card, EmptyState } from "@/src/components/ui/primitives";
 import { useLedger, utc } from "@/src/lib/ledger";
 import type { IdentitySnapshot } from "@/src/types";
 
-type State =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | { status: "ready"; snapshot: IdentitySnapshot; now: number };
-
 const STALE_AFTER = 120; // seconds: the exporter refreshes every 30 s
 
-function useIdentity(): { state: State; reload: () => void } {
-  const [state, setState] = useState<State>({ status: "loading" });
-  const [reloads, setReloads] = useState(0);
-  useEffect(() => {
-    let live = true;
-    fetch("/api/identity", { cache: "no-store" })
-      .then(async (res): Promise<State> => {
-        const body = await res.json();
-        return res.ok ? { status: "ready", snapshot: body.snapshot, now: body.now } : { status: "error", message: body.error ?? `HTTP ${res.status}` };
-      })
-      .catch((): State => ({ status: "error", message: "Dashboard server is unreachable" }))
-      .then((next) => { if (live) setState(next); });
-    return () => { live = false; };
-  }, [reloads]);
-  return { state, reload: () => setReloads((n) => n + 1) };
-}
+type IdentityFeed = { snapshot: IdentitySnapshot; now: number };
 
 const short = (id: string) => id.replace(/^spiffe:\/\/[^/]+/, "");
 const ttl = (s: number) => (s === 0 ? "default" : s % 3600 === 0 ? `${s / 3600} h` : `${Math.round(s / 60)} min`);
@@ -98,7 +79,7 @@ function Agents({ snapshot, now }: { snapshot: IdentitySnapshot; now: number }) 
 }
 
 export default function WorkloadIdentityPage() {
-  const { state, reload } = useIdentity();
+  const { state, reload } = useFeed<IdentityFeed>("/api/identity");
   const ledger = useLedger().state;
   const signed = useMemo(() => {
     const m = new Map<string, { n: number; last: number }>();
@@ -112,7 +93,7 @@ export default function WorkloadIdentityPage() {
     return m;
   }, [ledger]);
 
-  const age = state.status === "ready" ? state.now - state.snapshot.taken_at : 0;
+  const age = state.status === "ready" ? state.data.now - state.data.snapshot.taken_at : 0;
   const stale = age > STALE_AFTER;
   return (
     <div className="page">
@@ -121,7 +102,7 @@ export default function WorkloadIdentityPage() {
         subtitle="SPIRE registration entries and node agents, with the ledger records each identity has signed"
         badges={state.status === "ready" && (
           <>
-            <Badge tone="info">{state.snapshot.trust_domain}</Badge>
+            <Badge tone="info">{state.data.snapshot.trust_domain}</Badge>
             <Badge tone={stale ? "warn" : "ok"}>{stale ? `Snapshot ${Math.round(age / 60)} min old` : "Snapshot current"}</Badge>
           </>
         )}
@@ -140,8 +121,8 @@ export default function WorkloadIdentityPage() {
               The snapshot has not been refreshed for {Math.round(age / 60)} minutes. Run scripts/identity-snapshot.sh --loop on the host.
             </p>
           )}
-          <Workloads snapshot={state.snapshot} signed={signed} />
-          <Agents snapshot={state.snapshot} now={state.now} />
+          <Workloads snapshot={state.data.snapshot} signed={signed} />
+          <Agents snapshot={state.data.snapshot} now={state.data.now} />
         </>
       )}
     </div>

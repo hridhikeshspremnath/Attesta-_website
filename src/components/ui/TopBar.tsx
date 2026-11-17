@@ -7,8 +7,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import { MobileMenuButton } from "@/src/components/layout/Sidebar";
-import { Badge, StatusDot, TONE_TEXT, useModal, type Tone } from "@/src/components/ui/primitives";
+import { Badge, StatusDot, TONE_TEXT, useModal } from "@/src/components/ui/primitives";
+import { useFeed } from "@/src/lib/feeds";
+import { useLedger } from "@/src/lib/ledger";
 import { NAVIGATION_SECTIONS } from "@/src/lib/navigation";
+import { findings, serviceHealth, type Alert, type Health } from "@/src/lib/status";
+import type { IdentitySnapshot, PolicyView } from "@/src/types";
 
 /* ------------------------------------------------------------------ */
 /*  Icons                                                               */
@@ -109,21 +113,16 @@ function Dropdown({
 /*  Notification panel                                                  */
 /* ------------------------------------------------------------------ */
 
-const NOTIFICATIONS = [
-  { id: 1, tone: "crit" as Tone, message: "Incident INC-12456: Ransomware detected", time: "2m ago", href: "/incidents" },
-  { id: 2, tone: "warn" as Tone, message: "4 SVIDs expiring within 15 minutes", time: "5m ago", href: "/workload-identity" },
-  { id: 3, tone: "crit" as Tone, message: "Access denied: build-runner-1842 reading secrets", time: "10m ago", href: "/event-explorer?event=e1" },
-];
-
-function NotificationPanel({ onClose }: { onClose: () => void }) {
+function NotificationPanel({ onClose, alerts, open }: { onClose: () => void; alerts: Alert[]; open: number }) {
   return (
     <div role="dialog" aria-label="Notifications" className={`${PANEL} sm:w-[340px]`}>
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
         <span className="text-sm font-semibold text-fg">Notifications</span>
-        <Badge tone="info">Sample</Badge>
+        <Badge tone={open ? "warn" : "ok"}>{open ? `${open} open` : "All clear"}</Badge>
       </div>
+      {alerts.length === 0 && <p className="px-4 py-6 text-center text-xs text-muted">No open findings.</p>}
       <ul className="divide-y divide-line">
-        {NOTIFICATIONS.map((n) => (
+        {alerts.map((n) => (
           <li key={n.id}>
             <Link href={n.href} onClick={onClose} className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-raised/50">
               <span className={`mt-0.5 shrink-0 ${TONE_TEXT[n.tone]}`}><AlertTriangleIcon /></span>
@@ -136,7 +135,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
         ))}
       </ul>
       <div className="border-t border-line px-4 py-3">
-        <Link href="/incidents" onClick={onClose} className="link text-xs">View all incidents</Link>
+        <Link href="/incidents" onClick={onClose} className="link text-xs">View all findings</Link>
       </div>
     </div>
   );
@@ -187,31 +186,23 @@ function ProfilePanel({ onClose }: { onClose: () => void }) {
 /*  Security status panel                                               */
 /* ------------------------------------------------------------------ */
 
-const SECURITY_SERVICES = [
-  { name: "Webhook ingestion", ok: true },
-  { name: "Policy engine", ok: true },
-  { name: "Runtime agent", ok: false, note: "Stale · 2 min" },
-  { name: "Ledger", ok: true },
-  { name: "SPIRE attestation", ok: true },
-];
-
-function SecurityPanel() {
-  const allOk = SECURITY_SERVICES.every((s) => s.ok);
+function SecurityPanel({ services }: { services: Health[] }) {
+  const allOk = services.every((s) => s.ok);
   return (
     <div role="dialog" aria-label="Security status" className={`${PANEL} sm:w-[300px]`}>
       <div className="flex items-center gap-2 border-b border-line px-4 py-3">
         <StatusDot tone={allOk ? "ok" : "warn"} />
         <span className="text-sm font-semibold text-fg">Service status</span>
-        <span className="ml-auto"><Badge tone="info">Sample</Badge></span>
+        <span className="ml-auto"><Badge tone={allOk ? "ok" : "warn"}>{allOk ? "Operational" : "Degraded"}</Badge></span>
       </div>
       <ul className="py-1">
-        {SECURITY_SERVICES.map((s) => (
+        {services.map((s) => (
           <li key={s.name} className="flex items-center gap-3 px-4 py-2">
             <span className={s.ok ? "text-ok" : "text-warn"}>
               {s.ok ? <CheckCircleIcon /> : <AlertTriangleIcon />}
             </span>
             <span className="flex-1 text-xs text-fg">{s.name}</span>
-            <span className={`text-2xs ${s.ok ? "text-muted" : "text-warn"}`}>{s.note ?? "Live"}</span>
+            <span className={`text-2xs ${s.ok ? "text-muted" : "text-warn"}`}>{s.note}</span>
           </li>
         ))}
       </ul>
@@ -372,7 +363,12 @@ export default function TopBar({ crumbs, actions, onMenuOpen }: TopBarProps) {
   const [menu, setMenu] = useState<MenuId | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
   const toggle = (id: MenuId) => setMenu((cur) => (cur === id ? null : id));
-  const degraded = SECURITY_SERVICES.some((s) => !s.ok);
+  const ledger = useLedger().state;
+  const policy = useFeed<PolicyView>("/api/policy").state;
+  const identity = useFeed<{ snapshot: IdentitySnapshot; now: number }>("/api/identity").state;
+  const services = serviceHealth(ledger, policy, identity);
+  const { alerts, open } = findings(ledger);
+  const degraded = services.some((s) => !s.ok);
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-line bg-canvas/60 px-4 backdrop-blur-xl sm:px-6">
@@ -422,7 +418,7 @@ export default function TopBar({ crumbs, actions, onMenuOpen }: TopBarProps) {
             </button>
           }
         >
-          <SecurityPanel />
+          <SecurityPanel services={services} />
         </Dropdown>
 
         {/* Notifications */}
@@ -432,17 +428,17 @@ export default function TopBar({ crumbs, actions, onMenuOpen }: TopBarProps) {
           trigger={
             <button
               type="button"
-              aria-label={`Notifications (${NOTIFICATIONS.length} unread)`}
+              aria-label={`Notifications (${open} open)`}
               aria-expanded={menu === "notifications"}
               onClick={() => toggle("notifications")}
               className="icon-btn relative"
             >
               <BellIcon />
-              <span aria-hidden className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-crit" />
+              {open > 0 && <span aria-hidden className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-crit" />}
             </button>
           }
         >
-          <NotificationPanel onClose={closeMenu} />
+          <NotificationPanel onClose={closeMenu} alerts={alerts} open={open} />
         </Dropdown>
 
         {/* Additional actions slot */}
