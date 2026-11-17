@@ -5,7 +5,9 @@
 // Mobile-responsive: sidebar collapses to hamburger drawer on small screens.
 
 import Sidebar from "@/src/components/layout/Sidebar";
+import WaveBackground from "@/src/components/layout/WaveBackground";
 import TopBar, { type Crumb } from "@/src/components/ui/TopBar";
+import { findRoute } from "@/src/lib/navigation";
 import { useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
@@ -14,24 +16,9 @@ import { usePathname } from "next/navigation";
 /* ------------------------------------------------------------------ */
 
 function useBreadcrumbs(): Crumb[] {
-  const pathname = usePathname();
-
-  const ROUTE_MAP: Record<string, Crumb[]> = {
-    "/":                  [{ label: "Attesta", href: "/" }, { label: "Overview" }],
-    "/overview":          [{ label: "Attesta", href: "/" }, { label: "Overview" }],
-    "/pipeline-runs":     [{ label: "Monitor", href: "/" }, { label: "Pipeline Runs" }],
-    "/event-explorer":    [{ label: "Monitor", href: "/" }, { label: "Event Explorer" }],
-    "/workload-identity": [{ label: "Zero-Trust", href: "/" }, { label: "Workload Identity" }],
-    "/access-policies":   [{ label: "Zero-Trust", href: "/" }, { label: "Access Policies" }],
-    "/runtime-monitoring":[{ label: "Zero-Trust", href: "/" }, { label: "Runtime Monitoring" }],
-    "/incidents":         [{ label: "Investigate", href: "/" }, { label: "Incidents & Response" }],
-    "/trust-ledger":      [{ label: "Investigate", href: "/" }, { label: "Trust Ledger" }],
-    "/provenance":        [{ label: "Investigate", href: "/" }, { label: "Provenance & Verification" }],
-    "/integrations":      [{ label: "Admin", href: "/" }, { label: "Integrations & Settings" }],
-    "/doc":               [{ label: "Admin", href: "/" }, { label: "Documentation" }],
-  };
-
-  return ROUTE_MAP[pathname] ?? [{ label: "Attesta", href: "/" }, { label: pathname.replace("/", "").replace(/-/g, " ") }];
+  const route = findRoute(usePathname());
+  if (!route) return [{ label: "Attesta", href: "/" }, { label: "Page not found" }];
+  return [{ label: route.section.title }, { label: route.item.label }];
 }
 
 /* ------------------------------------------------------------------ */
@@ -42,8 +29,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const crumbs = useBreadcrumbs();
 
+  // The sign-in page is a bare page: no sidebar, no ledger calls.
+  if (usePathname() === "/login") return <><WaveBackground />{children}</>;
+
   return (
-    <div className="flex min-h-screen bg-black text-[#F9FAFB]">
+    <div className="flex min-h-screen text-fg">
+      <WaveBackground />
       <Sidebar
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}
